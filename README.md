@@ -1,6 +1,6 @@
-# Tính toán điện nhà máy
+# Tính toán cơ điện nhà máy
 
-Công cụ web tính toán hệ thống điện cho nhà máy. Toàn bộ nằm trong **một file `index.html`**: không cần cài đặt, không cần máy chủ. Chạy được trên máy tính, điện thoại và máy tính bảng. Số liệu nhập được lưu ngay trên trình duyệt của thiết bị.
+Công cụ web tính toán cơ điện cho nhà máy: điện, điều hòa – thông gió, khí nén và bơm. Toàn bộ nằm trong **một file `index.html`**: không cần cài đặt, không cần máy chủ. Chạy được trên máy tính, điện thoại và máy tính bảng. Số liệu nhập được lưu ngay trên trình duyệt của thiết bị.
 
 ## Các module
 
@@ -15,6 +15,14 @@ Công cụ web tính toán hệ thống điện cho nhà máy. Toàn bộ nằm 
 | | **BÙ** – Bù công suất phản kháng | kVAr, chia cấp, loại tụ theo sóng hài, cảnh báo cộng hưởng, CB/cáp tủ bù |
 | Dự phòng & an toàn | **MF** – Máy phát dự phòng | kVA theo tải và khởi động động cơ, ATS, nhiên liệu |
 | | **TĐ** – Tiếp địa | Điện trở cọc, nhóm cọc, thanh nối, số cọc cần thiết |
+| Điều hòa & thông gió | **TL** – Tải lạnh phòng | Tải lạnh hiện/ẩn, kW, TR, BTU/h, HP, gió cấp, phân tích thành phần tải |
+| | **CH** – Chiller & tháp giải nhiệt | Số lượng, công suất chiller, nước lạnh, nước giải nhiệt, tháp, ống chính, bơm, kW/TR, điện năng |
+| | **TG** – Thông gió, hút nhiệt xưởng | Lưu lượng theo nhiệt thải hoặc số lần trao đổi gió, số quạt, cửa lấy gió, ống gió |
+| | **ĐA** – Độ ẩm kho giấy, xưởng in | Lượng ẩm cần hút/tạo, điểm sương, nguy cơ đọng sương cuộn giấy (mùa nồm, hanh khô) |
+| Khí nén | **KN** – Nhu cầu & chọn máy nén | Bảng thiết bị dùng khí, máy nén, bình chứa, máy sấy, cấp chất lượng ISO 8573-1, nước ngưng, điện năng |
+| | **ỐK** – Đường ống khí nén | Đường kính ống theo lưu lượng, chiều dài, tổn thất áp, vận tốc |
+| | **RR** – Chi phí rò rỉ | Lưu lượng rò theo lỗ, kW, kWh và tiền điện mất mỗi năm |
+| Bơm & nước | **BƠM** – Chọn bơm và đường ống | Cột áp tĩnh + ma sát (Hazen-Williams), cỡ ống, công suất trục, động cơ |
 | Tiện ích | **CS** – Chiếu sáng | Số đèn, lưới bố trí, độ rọi, W/m² |
 | | **MÁNG** – Máng/thang cáp | Bề rộng theo hệ số lấp đầy hoặc xếp một lớp |
 | | **BT** – Tiết kiệm bằng biến tần | kWh, tiền, thời gian hoàn vốn, giảm CO₂ |
@@ -65,7 +73,7 @@ Mở `index.html` bằng Notepad++ hoặc VS Code, tìm các mục sau (Ctrl+F):
 
 ## Cơ sở tính toán
 
-IEC 60364-5-52 / 5-54 / 4-41 / 4-43, IEC 60909-0, IEC 61439-1, IEC 60076, IEC 62271-1, IEC 60034-30-1, IEC 60831; Schneider Electric *Electrical Installation Guide* và *MV Design Guide*; TCVN 9358:2012, TCVN 7114-1.
+IEC 60364-5-52 / 5-54 / 4-41 / 4-43, IEC 60909-0, ASHRAE Fundamentals, ISO 8573-1, Atlas Copco Compressed Air Manual, IEC 61439-1, IEC 60076, IEC 62271-1, IEC 60034-30-1, IEC 60831; Schneider Electric *Electrical Installation Guide* và *MV Design Guide*; TCVN 9358:2012, TCVN 7114-1.
 
 ## Giới hạn
 

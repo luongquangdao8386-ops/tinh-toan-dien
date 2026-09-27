@@ -1,6 +1,6 @@
 {
-  "name": "Tính toán điện nhà máy",
-  "short_name": "Tính điện",
+  "name": "Tính toán cơ điện nhà máy",
+  "short_name": "Cơ điện",
   "lang": "vi",
   "start_url": "./",
   "scope": "./",

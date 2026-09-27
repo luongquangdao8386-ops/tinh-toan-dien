@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Công cụ tính toán điện nhà máy: máy biến áp, tủ trung thế, ngắn mạch, thanh cái, cáp và CB, động cơ, bù cosφ, máy phát, tiếp địa, chiếu sáng.">
+<meta name="description" content="Công cụ tính toán cơ điện nhà máy: máy biến áp, tủ trung thế, ngắn mạch, thanh cái, cáp và CB, động cơ, bù cosφ, máy phát, tiếp địa, chiếu sáng, tải lạnh, chiller, thông gió, độ ẩm, khí nén, bơm.">
 <meta name="theme-color" content="#27302F">
-<title>Tính toán điện nhà máy</title>
+<title>Tính toán cơ điện nhà máy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E2626'/%3E%3Cg fill='none' stroke-width='4.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M29.45 11.23 L15.97 38.20 L27.97 38.20 L23.45 47.23' stroke='%23E5382F'/%3E%3Cpath d='M35.00 14.00 L26.00 32.00 L38.00 32.00 L29.00 50.00' stroke='%23F6C21C'/%3E%3Cpath d='M40.55 16.77 L36.03 25.80 L48.03 25.80 L34.55 52.77' stroke='%232F80ED'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-title" content="Tính điện">
+<meta name="apple-mobile-web-app-title" content="Cơ điện">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
@@ -84,6 +84,10 @@ main{padding:26px clamp(16px,3vw,40px) 90px;min-width:0}
 .hero{max-width:1100px}
 .hero h1{font-family:var(--cond);font-weight:600;font-size:clamp(30px,4.4vw,44px);line-height:1.05;margin:4px 0 8px;letter-spacing:-.005em}
 .hero p{margin:0 0 18px;color:var(--muted);max-width:66ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.chip{height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px;font-weight:500}
+.chip:hover{border-color:var(--copper-line);color:var(--copper)}
+.hgrp{scroll-margin-top:72px}
 .sld-wrap{max-width:920px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 10px 4px;overflow-x:auto}
 .sld{display:block;width:100%;min-width:600px;height:auto}
 .sld .w{stroke:var(--wire);stroke-width:2;fill:none;stroke-linecap:round}
@@ -255,7 +259,7 @@ select:focus{outline:none;border-color:var(--copper);box-shadow:0 0 0 3px var(--
   </button>
   <a class="logo" href="#">
     <span class="logo-mark"><svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1E2626"/><g fill="none" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"><path d="M29.45 11.23 L15.97 38.20 L27.97 38.20 L23.45 47.23" stroke="#E5382F"/><path d="M35.00 14.00 L26.00 32.00 L38.00 32.00 L29.00 50.00" stroke="#F6C21C"/><path d="M40.55 16.77 L36.03 25.80 L48.03 25.80 L34.55 52.77" stroke="#2F80ED"/></g></svg></span>
-    <span class="logo-t">Tính toán điện <span>nhà máy</span></span>
+    <span class="logo-t">Tính toán cơ điện <span>nhà máy</span></span>
   </a>
   <span class="grow"></span>
   <button type="button" id="btnTheme" class="tb-btn" aria-label="Đổi giao diện sáng hoặc tối">
@@ -1384,7 +1388,7 @@ const UF_K = [0.6, 0.8, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
 const UF_IND = [0.40, 0.47, 0.52, 0.57, 0.61, 0.66, 0.69, 0.72, 0.75, 0.77];
 const UF_OFF = [0.47, 0.55, 0.61, 0.66, 0.70, 0.75, 0.78, 0.81, 0.84, 0.86];
 M({
-  id: 'light', grp: 3, tag: 'CS', name: 'Chiếu sáng nhà xưởng',
+  id: 'light', grp: 6, tag: 'CS', name: 'Chiếu sáng nhà xưởng',
   desc: 'Tính số đèn theo phương pháp quang thông, bố trí lưới đèn, độ rọi thực tế và mật độ công suất chiếu sáng.',
   ref: 'Phương pháp hệ số sử dụng (lumen method); độ rọi tham khảo TCVN 7114-1 / EN 12464-1',
   fields: [
@@ -1447,7 +1451,7 @@ M({
 /* ===== 4.11 Máng cáp ===== */
 const TRAY_W = [50, 75, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200];
 M({
-  id: 'tray', grp: 3, tag: 'MÁNG', name: 'Chọn kích thước máng/thang cáp',
+  id: 'tray', grp: 6, tag: 'MÁNG', name: 'Chọn kích thước máng/thang cáp',
   desc: 'Tính bề rộng máng hoặc thang cáp theo hệ số lấp đầy hoặc bố trí một lớp, có dự phòng mở rộng.',
   ref: 'Thực hành thiết kế: hệ số lấp đầy 40–50%, cáp động lực lớn đi một lớp (IEC 60364-5-52 hệ số nhóm)',
   fields: [
@@ -1499,7 +1503,7 @@ M({
 
 /* ===== 4.12 Tiết kiệm điện bằng biến tần ===== */
 M({
-  id: 'vfd', grp: 3, tag: 'BT', name: 'Tiết kiệm điện bằng biến tần',
+  id: 'vfd', grp: 6, tag: 'BT', name: 'Tiết kiệm điện bằng biến tần',
   desc: 'Ước tính điện năng tiết kiệm khi thay van tiết lưu, cửa gió bằng biến tần cho bơm, quạt; thời gian hoàn vốn và giảm phát thải.',
   ref: 'Định luật tương tự cho bơm, quạt ly tâm (P ~ Q·H, H = H<sub>tĩnh</sub> + k·Q²)',
   fields: [
@@ -1553,7 +1557,7 @@ M({
 
 /* ===== 4.13 Quy đổi nhanh ===== */
 M({
-  id: 'conv', grp: 3, tag: 'QĐ', name: 'Quy đổi công suất – dòng điện',
+  id: 'conv', grp: 6, tag: 'QĐ', name: 'Quy đổi công suất – dòng điện',
   desc: 'Quy đổi nhanh giữa kW điện, kW trục, HP, kVA, kVAr và dòng điện cho mạch 1 pha, 3 pha.',
   ref: 'P = √3·U·I·cosφ; 1 HP = 0,7457 kW',
   fields: [
@@ -1594,12 +1598,594 @@ M({
 if (typeof module !== 'undefined') module.exports = { MODULES, sizeCable, f };
 
 /* ==========================================================================
+   5. ĐIỀU HÒA – THÔNG GIÓ – KHÍ NÉN – BƠM
+   Tham chiếu: ASHRAE Fundamentals (tâm lý học không khí, tải nhiệt), TCVN 5687,
+   Atlas Copco "Compressed Air Manual", ISO 8573-1, công thức Hazen-Williams.
+   ========================================================================== */
+
+/* ---------- Tâm lý học không khí ---------- */
+function pws(T) { return 610.94 * Math.exp(17.625 * T / (T + 243.04)); }                 // Pa, áp suất hơi bão hòa
+function wAbs(T, RH, P) { const pw = pws(T) * RH / 100; return 0.622 * pw / ((P || 101325) - pw); } // kg/kg khô
+function dewFromW(w, P) { const pw = w * (P || 101325) / (0.622 + w); const a = Math.log(pw / 610.94); return 243.04 * a / (17.625 - a); }
+const KW_TR = 3.517;
+const PIPE_DN = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400];
+const PIPE_ID = [15.8, 20.9, 26.6, 35.1, 40.9, 52.5, 62.7, 77.9, 102.3, 128.2, 154.1, 202.7, 254.5, 303.2, 333.4, 381.0]; // mm, thép SCH40
+function pipeArea(i) { return Math.PI * Math.pow(PIPE_ID[i] / 1000, 2) / 4; }
+function pickPipe(Qm3s, vmax) {
+  for (let i = 0; i < PIPE_DN.length; i++) { const v = Qm3s / pipeArea(i); if (v <= vmax) return { i, dn: PIPE_DN[i], id: PIPE_ID[i], v }; }
+  const i = PIPE_DN.length - 1; return { i, dn: PIPE_DN[i], id: PIPE_ID[i], v: Qm3s / pipeArea(i), over: true };
+}
+function motorFor(kW) { return nextStd(MKW, kW) || Math.ceil(kW); }
+function motorAmp(kW) { const e = interp(MKW, MEFF, kW) / 100, c = interp(MKW, MCOS, kW); return kW * 1000 / (SQ3 * 400 * c * e); }
+const DUCT_D = [100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 560, 630, 710, 800, 900, 1000, 1120, 1250, 1400, 1600, 1800, 2000];
+
+/* ===== 5.1 Tải lạnh phòng ===== */
+M({
+  id: 'cool', grp: 3, tag: 'TL', name: 'Tải lạnh phòng',
+  desc: 'Tính tải lạnh hiện và ẩn cho phòng điều khiển, phòng điện, văn phòng, xưởng in; quy đổi kW, TR, BTU/h, HP và lưu lượng gió cấp.',
+  ref: 'ASHRAE Fundamentals (phương pháp chênh nhiệt độ tương đương, rút gọn); gió tươi theo TCVN 5687',
+  fields: [
+    { type: 'sec', label: 'Phòng và điều kiện thiết kế' },
+    { id: 'L', type: 'num', label: 'Chiều dài', unit: 'm', def: 20 },
+    { id: 'W', type: 'num', label: 'Chiều rộng', unit: 'm', def: 12 },
+    { id: 'H', type: 'num', label: 'Chiều cao', unit: 'm', def: 4 },
+    { id: 'tin', type: 'num', label: 'Nhiệt độ trong phòng', unit: '°C', def: 25 },
+    { id: 'rhin', type: 'num', label: 'Độ ẩm trong phòng', unit: '%', def: 55 },
+    { id: 'tout', type: 'num', label: 'Nhiệt độ ngoài trời', unit: '°C', def: 35, help: 'Lấy theo số liệu khí hậu xây dựng của địa phương (QCVN 02:2022/BXD).' },
+    { id: 'rhout', type: 'num', label: 'Độ ẩm ngoài trời', unit: '%', def: 58 },
+    { type: 'sec', label: 'Kết cấu bao che' },
+    { id: 'Aw', type: 'num', label: 'Diện tích tường ngoài', unit: 'm²', def: 128 },
+    { id: 'Uw', type: 'num', label: 'Hệ số truyền nhiệt tường', unit: 'W/m²K', def: 2.0, help: 'Tường gạch 220 ≈ 2,0; panel cách nhiệt PU 50 mm ≈ 0,45.' },
+    { id: 'roof', type: 'sel', label: 'Mái tiếp xúc nắng', opts: [['1', 'Có (tầng trên cùng, mái tôn)'], ['0', 'Không (phía trên có phòng)']], def: '1' },
+    { id: 'Ur', type: 'num', label: 'Hệ số truyền nhiệt mái', unit: 'W/m²K', def: 1.0, show: v => v.roof === '1', help: 'Mái tôn có bông cách nhiệt 50 mm ≈ 0,7–1,0; mái tôn trần ≈ 5.' },
+    { id: 'Ag', type: 'num', label: 'Diện tích kính', unit: 'm²', def: 10 },
+    { id: 'shgc', type: 'num', label: 'Hệ số hấp thụ nắng kính SHGC', def: 0.6 },
+    { type: 'sec', label: 'Nguồn nhiệt bên trong' },
+    { id: 'n', type: 'num', label: 'Số người', def: 10 },
+    { id: 'act', type: 'sel', label: 'Mức độ lao động', opts: [['office', 'Văn phòng, ngồi (70/45 W)'], ['light', 'Lao động nhẹ (80/140 W)'], ['heavy', 'Lao động nặng (170/255 W)']], def: 'office' },
+    { id: 'lpd', type: 'num', label: 'Công suất chiếu sáng', unit: 'W/m²', def: 10 },
+    { id: 'eq', type: 'num', label: 'Nhiệt tỏa từ thiết bị', unit: 'kW', def: 5, help: 'Phòng điện, MCC: tổn hao biến tần ≈ 3% công suất; UPS ≈ 5–8%; MBA khô P0 + Pk×β².' },
+    { type: 'sec', label: 'Gió tươi và dự phòng' },
+    { id: 'oa', type: 'num', label: 'Gió tươi mỗi người', unit: 'm³/h', def: 25 },
+    { id: 'ach', type: 'num', label: 'Gió lọt qua khe cửa', unit: 'lần/h', def: 0.5 },
+    { id: 'sf', type: 'num', label: 'Hệ số an toàn', unit: '%', def: 10 }
+  ],
+  calc(v) {
+    const A = v.L * v.W, V = A * v.H;
+    if (!(A > 0 && v.H > 0)) return { error: 'Nhập kích thước phòng.' };
+    if (!(v.rhin > 0 && v.rhin < 100 && v.rhout > 0 && v.rhout <= 100)) return { error: 'Độ ẩm phải trong khoảng 1–100%.' };
+    const dt = v.tout - v.tin;
+    const act = { office: [70, 45], light: [80, 140], heavy: [170, 255] }[v.act] || [70, 45];
+    const Qw = v.Uw * v.Aw * (dt + 7) / 1000;
+    const Qr = v.roof === '1' ? v.Ur * A * (dt + 20) / 1000 : 0;
+    const Qg = v.Ag * (5.8 * dt + 300 * v.shgc) / 1000;
+    const Qps = v.n * act[0] / 1000, Qpl = v.n * act[1] / 1000;
+    const Qli = v.lpd * A / 1000, Qe = v.eq || 0;
+    const Voa = (v.n * v.oa + v.ach * V) / 3600;
+    const wi = wAbs(v.tin, v.rhin), wo = wAbs(v.tout, v.rhout);
+    const Qos = 1.21 * Voa * dt, Qol = 3001 * Voa * Math.max(wo - wi, 0);
+    const k = 1 + (v.sf || 0) / 100;
+    const Qs = (Qw + Qr + Qg + Qps + Qli + Qe + Qos) * k, Ql = (Qpl + Qol) * k, Q = Qs + Ql;
+    const TR = Q / KW_TR, BTU = Q * 3412, HP = BTU / 9000, SHR = Qs / Q;
+    const Vs = Qs / (1.21 * 10) * 3600;
+    const dens = Q * 1000 / A;
+    const parts = [['Tường', Qw], ['Mái', Qr], ['Kính (truyền nhiệt + bức xạ)', Qg], ['Người – nhiệt hiện', Qps], ['Người – nhiệt ẩn', Qpl], ['Chiếu sáng', Qli], ['Thiết bị', Qe], ['Gió tươi – nhiệt hiện', Qos], ['Gió tươi – nhiệt ẩn', Qol]];
+    const raw = parts.reduce((s, p) => s + p[1], 0);
+    const checks = [];
+    checks.push(chk(dens > 350 ? WARN : OK, `Mật độ tải lạnh ${f(dens, 0)} W/m²${dens > 350 ? ' – cao, thường do thiết bị tỏa nhiệt lớn (phòng điện, máy in). Cân nhắc điều hòa chính xác hoặc hút nhiệt cục bộ.' : ''}`));
+    if (SHR < 0.7) checks.push(chk(WARN, `Tỷ lệ nhiệt hiện SHR = ${f(SHR, 2)} thấp: tải ẩm lớn, nên chọn máy có khả năng khử ẩm tốt hoặc xử lý gió tươi riêng.`));
+    if (Qe / raw > 0.5) checks.push(chk(INFO, 'Thiết bị chiếm hơn một nửa tải lạnh: phòng điện nên chọn máy chạy 24/7, có dự phòng N+1.'));
+    return {
+      main: [
+        { l: 'Tổng tải lạnh', v: f(Q, 1), u: 'kW', sub: `${f(TR, 1)} TR, ${f(BTU, 0)} BTU/h`, s: 'hl' },
+        { l: 'Quy đổi công suất máy', v: f(HP, 1), u: 'HP', sub: '1 HP ≈ 9.000 BTU/h (máy treo tường, âm trần)' },
+        { l: 'Nhiệt hiện / ẩn', v: `${f(Qs, 1)} / ${f(Ql, 1)}`, u: 'kW', sub: `SHR = ${f(SHR, 2)}` },
+        { l: 'Lưu lượng gió cấp', v: f(Vs, 0), u: 'm³/h', sub: 'Chênh nhiệt độ gió cấp 10 K' }
+      ],
+      checks,
+      rows: [
+        ['Diện tích / thể tích', `${f(A, 0)} / ${f(V, 0)}`, 'm² / m³'],
+        ['Độ chứa hơi trong / ngoài', `${f(wi * 1000, 1)} / ${f(wo * 1000, 1)}`, 'g/kg'],
+        ['Điểm sương trong phòng', f(dewFromW(wi), 1), '°C'],
+        ['Lưu lượng gió tươi + gió lọt', f(Voa * 3600, 0), 'm³/h'],
+        ['Mật độ tải lạnh', f(dens, 0), 'W/m²'],
+        ['Điện năng điều hòa ước tính (COP 3,2)', f(Q / 3.2, 1), 'kW điện']
+      ],
+      tables: [{ title: 'Thành phần tải lạnh (chưa kể hệ số an toàn)', head: ['Nguồn nhiệt', 'kW', '%'], body: parts.map(p => [p[0], f(p[1], 2), f(p[1] / raw * 100, 0)]) }],
+      steps: [
+        `Tường: Q = U × A × (Δt + 7) = ${f(v.Uw, 2)} × ${f(v.Aw)} × ${f(dt + 7, 1)} = ${f(Qw, 2)} kW (7 K kể đến bức xạ mặt trời)`,
+        v.roof === '1' ? `Mái: Q = U × A × (Δt + 20) = ${f(v.Ur, 2)} × ${f(A, 0)} × ${f(dt + 20, 1)} = ${f(Qr, 2)} kW` : 'Mái: phía trên có phòng, bỏ qua',
+        `Kính: Q = A × (5,8 × Δt + 300 × SHGC) = ${f(Qg, 2)} kW`,
+        `Gió tươi: Q<sub>hiện</sub> = 1,21 × V × Δt = 1,21 × ${f(Voa, 3)} × ${f(dt, 1)} = ${f(Qos, 2)} kW; Q<sub>ẩn</sub> = 3001 × V × Δw = 3001 × ${f(Voa, 3)} × ${f(wo - wi, 5)} = ${f(Qol, 2)} kW`,
+        `Tổng = (ΣQ<sub>hiện</sub> + ΣQ<sub>ẩn</sub>) × ${f(k, 2)} = ${f(Q, 2)} kW; 1 TR = 3,517 kW`,
+        `Gió cấp V = Q<sub>hiện</sub> / (1,21 × 10) = ${f(Vs / 3600, 3)} m³/s`
+      ],
+      notes: ['Phương pháp rút gọn cho giờ nóng nhất, phù hợp chọn sơ bộ công suất. Công trình lớn nên tính theo từng giờ, từng hướng (CLTD/RTS) hoặc phần mềm HAP, Trace.']
+    };
+  }
+});
+
+/* ===== 5.2 Chiller & tháp giải nhiệt ===== */
+const TR_STD = [30, 40, 50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1200];
+M({
+  id: 'chiller', grp: 3, tag: 'CH', name: 'Chiller & tháp giải nhiệt',
+  desc: 'Chọn số lượng, công suất chiller; lưu lượng nước lạnh, nước giải nhiệt; tháp giải nhiệt; ống chính, bơm; điện năng và kW/TR toàn hệ.',
+  ref: 'ASHRAE HVAC Systems & Equipment; AHRI 550/590 (COP định mức); tháp giải nhiệt theo quy ước 1 RT tháp = 3.900 kcal/h',
+  fields: [
+    { type: 'sec', label: 'Tải lạnh' },
+    { id: 'unit', type: 'sel', label: 'Đơn vị nhập', opts: [['TR', 'TR (tấn lạnh)'], ['kW', 'kW']], def: 'TR' },
+    { id: 'Q', type: 'num', label: 'Tổng tải lạnh lớn nhất', def: 300, help: 'Lấy từ module Tải lạnh cộng các khu vực.' },
+    { id: 'sf', type: 'num', label: 'Hệ số an toàn', unit: '%', def: 10 },
+    { type: 'sec', label: 'Chiller' },
+    { id: 'type', type: 'sel', label: 'Loại chiller', opts: [['wcs', 'Giải nhiệt nước – trục vít (COP ≈ 5,6)'], ['wcc', 'Giải nhiệt nước – ly tâm (COP ≈ 6,2)'], ['acs', 'Giải nhiệt gió – trục vít (COP ≈ 3,1)'], ['custom', 'Tự nhập COP']], def: 'wcs' },
+    { id: 'cop', type: 'num', label: 'COP', def: 5.6, show: v => v.type === 'custom' },
+    { id: 'n', type: 'sel', label: 'Số chiller', opts: [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], def: '2' },
+    { id: 'red', type: 'sel', label: 'Dự phòng', opts: [['none', 'Không, các máy cùng chạy'], ['n1', 'N+1 (1 máy dự phòng)']], def: 'none', show: v => +v.n > 1 },
+    { id: 'tchws', type: 'num', label: 'Nước lạnh cấp', unit: '°C', def: 7 },
+    { id: 'tchwr', type: 'num', label: 'Nước lạnh hồi', unit: '°C', def: 12 },
+    { id: 'tcws', type: 'num', label: 'Nước giải nhiệt vào', unit: '°C', def: 32, show: v => v.type !== 'acs' },
+    { id: 'tcwr', type: 'num', label: 'Nước giải nhiệt ra', unit: '°C', def: 37, show: v => v.type !== 'acs' },
+    { type: 'sec', label: 'Đường ống và bơm' },
+    { id: 'vmax', type: 'num', label: 'Vận tốc nước tối đa ống chính', unit: 'm/s', def: 2.4 },
+    { id: 'Hchw', type: 'num', label: 'Cột áp bơm nước lạnh', unit: 'm', def: 30 },
+    { id: 'Hcw', type: 'num', label: 'Cột áp bơm giải nhiệt', unit: 'm', def: 25, show: v => v.type !== 'acs' },
+    { id: 'eta', type: 'num', label: 'Hiệu suất bơm', unit: '%', def: 75 },
+    { type: 'sec', label: 'Vận hành và chi phí' },
+    { id: 'hours', type: 'num', label: 'Số giờ chạy/năm', unit: 'h', def: 6000 },
+    { id: 'lf', type: 'num', label: 'Tải trung bình so với thiết kế', unit: '%', def: 70 },
+    { id: 'price', type: 'num', label: 'Giá điện bình quân', unit: 'đ/kWh', def: 2000 }
+  ],
+  calc(v) {
+    const Q = v.unit === 'kW' ? v.Q : v.Q * KW_TR;
+    if (!(Q > 0)) return { error: 'Nhập tải lạnh.' };
+    const dtc = v.tchwr - v.tchws, air = v.type === 'acs', dtw = v.tcwr - v.tcws;
+    if (!(dtc > 0)) return { error: 'Nhiệt độ nước lạnh hồi phải lớn hơn nhiệt độ cấp.' };
+    if (!air && !(dtw > 0)) return { error: 'Nhiệt độ nước giải nhiệt ra phải lớn hơn nhiệt độ vào.' };
+    const Qd = Q * (1 + (v.sf || 0) / 100);
+    const n = +v.n || 1, n1 = n > 1 && v.red === 'n1', run = n1 ? n - 1 : n;
+    const TRreq = Qd / KW_TR / run;
+    const TRch = nextStd(TR_STD, TRreq);
+    if (!TRch) return { error: `Mỗi chiller cần ${f(TRreq, 0)} TR – vượt 1.200 TR. Tăng số chiller.` };
+    const Qch = TRch * KW_TR;
+    const cop = v.type === 'custom' ? (v.cop > 0 ? v.cop : 5) : { wcs: 5.6, wcc: 6.2, acs: 3.1 }[v.type];
+    const Pch = Qch / cop;
+    const Fchw = Qch / (4.186 * dtc) * 3.6;
+    const Qrej = Qch + Pch, Fcw = air ? 0 : Qrej / (4.186 * dtw) * 3.6, towerRT = Qrej / 4.535;
+    const hChw = pickPipe(run * Fchw / 3600, v.vmax || 2.4), bChw = pickPipe(Fchw / 3600, v.vmax || 2.4);
+    const hCw = air ? null : pickPipe(run * Fcw / 3600, v.vmax || 2.4);
+    const eta = clamp(v.eta || 75, 30, 95) / 100;
+    const Pp1 = 9.81 * (Fchw / 3600) * v.Hchw / eta, Pp2 = air ? 0 : 9.81 * (Fcw / 3600) * v.Hcw / eta;
+    const M1 = motorFor(Pp1 * 1.15), M2 = air ? 0 : motorFor(Pp2 * 1.15);
+    const Ich = Pch * 1000 / (SQ3 * 400 * 0.88);
+    const Ptot = run * (Pch + Pp1 + Pp2);
+    const kwtr = Ptot / (run * TRch);
+    const lf = clamp(v.lf || 70, 10, 100) / 100;
+    const E = (Qd * lf / cop + run * (Pp1 + Pp2)) * (v.hours || 0);
+    const checks = [];
+    checks.push(chk(OK, `${n} chiller × ${TRch} TR${n1 ? ' (1 máy dự phòng)' : ''}, mỗi máy mang ${f(TRreq / TRch * 100, 0)}% tải thiết kế`));
+    checks.push(chk(kwtr <= 0.85 ? OK : WARN, `Suất tiêu thụ điện toàn hệ ${f(kwtr, 2)} kW/TR ${kwtr <= 0.85 ? '(tốt)' : '(cao – xem xét chiller giải nhiệt nước, biến tần bơm, tăng ΔT)'}`));
+    if (air) checks.push(chk(INFO, 'Chiller giải nhiệt gió: không cần tháp và bơm giải nhiệt nhưng điện năng cao hơn khoảng 60–80%.'));
+    if (hChw.over) checks.push(chk(WARN, 'Lưu lượng vượt ống DN400 – chia nhiều ống hoặc tăng vận tốc cho phép.'));
+    const rows = [
+      ['Tải lạnh thiết kế (có an toàn)', `${f(Qd, 0)} kW = ${f(Qd / KW_TR, 0)} TR`, ''],
+      ['COP / kW điện mỗi TR (chiller)', `${f(cop, 2)} / ${f(KW_TR / cop, 3)}`, ''],
+      ['Công suất điện mỗi chiller', f(Pch, 0), `kW, I ≈ ${f(Ich, 0)} A ở 400 V`],
+      ['Lưu lượng nước lạnh mỗi chiller', f(Fchw, 1), 'm³/h'],
+      ['Ống nước lạnh chính / nhánh', `DN${hChw.dn} (${f(hChw.v, 2)} m/s) / DN${bChw.dn} (${f(bChw.v, 2)} m/s)`, '']
+    ];
+    if (!air) rows.push(
+      ['Nhiệt thải ở bình ngưng mỗi chiller', f(Qrej, 0), 'kW'],
+      ['Lưu lượng nước giải nhiệt mỗi chiller', f(Fcw, 1), 'm³/h'],
+      ['Tháp giải nhiệt mỗi chiller', f(towerRT, 0), 'RT tháp (3.900 kcal/h)'],
+      ['Ống nước giải nhiệt chính', `DN${hCw.dn} (${f(hCw.v, 2)} m/s)`, '']);
+    rows.push(['Bơm nước lạnh (mỗi chiller)', `${f(Pp1, 1)} kW trục → động cơ ${M1} kW`, `${f(Fchw, 0)} m³/h, ${f(v.Hchw)} m`]);
+    if (!air) rows.push(['Bơm giải nhiệt (mỗi chiller)', `${f(Pp2, 1)} kW trục → động cơ ${M2} kW`, `${f(Fcw, 0)} m³/h, ${f(v.Hcw)} m`]);
+    rows.push(['Điện năng/năm (chiller + bơm)', f(E, 0), 'kWh'], ['Chi phí điện/năm', f(E * (v.price || 0) / 1e6, 0), 'triệu đồng']);
+    return {
+      main: [
+        { l: 'Chiller đề xuất', v: `${n} × ${TRch}`, u: 'TR', sub: `${f(Qch, 0)} kW mỗi máy, COP ${f(cop, 1)}`, s: 'hl' },
+        { l: 'Nước lạnh mỗi máy', v: f(Fchw, 0), u: 'm³/h', sub: `${f(v.tchws)}/${f(v.tchwr)} °C, ống chính DN${hChw.dn}` },
+        { l: air ? 'Điện mỗi chiller' : 'Tháp giải nhiệt', v: air ? f(Pch, 0) : f(towerRT, 0), u: air ? 'kW' : 'RT', sub: air ? `${f(Ich, 0)} A ở 400 V` : `mỗi chiller, nước ${f(Fcw, 0)} m³/h` },
+        { l: 'Hiệu suất toàn hệ', v: f(kwtr, 2), u: 'kW/TR', sub: `Điện năng ${f(E / 1000, 0)} MWh/năm` }
+      ],
+      checks, rows,
+      steps: [
+        `Tải mỗi chiller = ${f(Qd, 0)} kW / ${run} máy / 3,517 = ${f(TRreq, 1)} TR → chọn ${TRch} TR`,
+        `Lưu lượng nước lạnh = Q / (4,186 × Δt) = ${f(Qch, 0)} / (4,186 × ${f(dtc)}) = ${f(Fchw / 3.6, 2)} kg/s = ${f(Fchw, 1)} m³/h`,
+        ...(air ? [] : [`Nhiệt thải = Q + P = ${f(Qch, 0)} + ${f(Pch, 0)} = ${f(Qrej, 0)} kW → nước giải nhiệt = ${f(Qrej, 0)} / (4,186 × ${f(dtw)}) × 3,6 = ${f(Fcw, 1)} m³/h; tháp = ${f(Qrej, 0)} / 4,535 = ${f(towerRT, 0)} RT`]),
+        `Công suất bơm = ρ·g·Q·H / η = 9,81 × ${f(Fchw / 3600, 4)} × ${f(v.Hchw)} / ${f(eta, 2)} = ${f(Pp1, 2)} kW`,
+        `kW/TR toàn hệ = (P<sub>chiller</sub> + P<sub>bơm</sub>) / TR = ${f(Ptot, 0)} / ${f(run * TRch)} = ${f(kwtr, 3)}`
+      ],
+      notes: ['COP là giá trị điển hình ở điều kiện định mức; lấy theo catalogue hãng (Trane, Daikin, Carrier, York…). Điện năng tính với COP đầy tải – thực tế ở tải một phần thường tốt hơn.', 'Chưa gồm quạt tháp giải nhiệt (thường 1–2% công suất lạnh) và AHU/FCU.']
+    };
+  }
+});
+
+/* ===== 5.3 Thông gió xưởng ===== */
+M({
+  id: 'vent', grp: 3, tag: 'TG', name: 'Thông gió, hút nhiệt xưởng',
+  desc: 'Tính lưu lượng gió theo nhiệt thải hoặc số lần trao đổi gió, số quạt hút, cửa lấy gió bổ sung và kích thước ống gió.',
+  ref: 'Cân bằng nhiệt Q = ρ·c<sub>p</sub>·V·Δt; bội số trao đổi gió tham khảo TCVN 5687; ống gió theo phương pháp vận tốc',
+  fields: [
+    { type: 'sec', label: 'Nhà xưởng' },
+    { id: 'L', type: 'num', label: 'Chiều dài', unit: 'm', def: 60 },
+    { id: 'W', type: 'num', label: 'Chiều rộng', unit: 'm', def: 30 },
+    { id: 'H', type: 'num', label: 'Chiều cao trung bình', unit: 'm', def: 9 },
+    { id: 'mode', type: 'sel', label: 'Tính theo', opts: [['heat', 'Nhiệt thải trong xưởng'], ['ach', 'Số lần trao đổi gió']], def: 'heat' },
+    { id: 'Q', type: 'num', label: 'Tổng nhiệt thải vào không khí', unit: 'kW', def: 300, show: v => v.mode === 'heat', help: 'Động cơ ≈ (1 − η) × P; máy sấy, đường hơi, bức xạ mái. Máy xeo, sóng giấy thường rất lớn.' },
+    { id: 'dT', type: 'num', label: 'Chênh nhiệt độ trong – ngoài cho phép', unit: 'K', def: 4 },
+    { id: 'ach', type: 'num', label: 'Số lần trao đổi gió', unit: 'lần/h', def: 20, show: v => v.mode === 'ach', help: 'Kho: 4–6; xưởng thường: 10–15; xưởng nóng, máy sấy: 20–30.' },
+    { type: 'sec', label: 'Quạt và ống gió' },
+    { id: 'fq', type: 'num', label: 'Lưu lượng mỗi quạt', unit: 'm³/h', def: 38000, help: 'Quạt hút vuông 1380 mm thường 35.000–44.000 m³/h. Lấy theo catalogue.' },
+    { id: 'fkw', type: 'num', label: 'Công suất mỗi quạt', unit: 'kW', def: 1.1 },
+    { id: 'vd', type: 'num', label: 'Vận tốc gió trong ống (nếu đi ống)', unit: 'm/s', def: 8, help: 'Ống chính 6–10 m/s; nhánh 4–6 m/s.' }
+  ],
+  calc(v) {
+    const V = v.L * v.W * v.H;
+    if (!(V > 0)) return { error: 'Nhập kích thước nhà xưởng.' };
+    if (!(v.fq > 0)) return { error: 'Nhập lưu lượng quạt.' };
+    const Vheat = v.Q > 0 && v.dT > 0 ? v.Q / (1.206 * v.dT) * 3600 : 0;
+    const Vach = (v.ach || 0) * V;
+    const need = v.mode === 'heat' ? Vheat : Vach;
+    if (!(need > 0)) return { error: v.mode === 'heat' ? 'Nhập nhiệt thải và chênh nhiệt độ cho phép.' : 'Nhập số lần trao đổi gió.' };
+    const nf = Math.ceil(need / v.fq), Vact = nf * v.fq, achAct = Vact / V, kW = nf * (v.fkw || 0);
+    const dtAct = v.mode === 'heat' ? v.Q / (1.206 * Vact / 3600) : (v.Q > 0 ? v.Q / (1.206 * Vact / 3600) : null);
+    const vd = v.vd > 0 ? v.vd : 8, A1 = v.fq / 3600 / vd;
+    const D = nextStd(DUCT_D, Math.sqrt(4 * A1 / Math.PI) * 1000) || Math.ceil(Math.sqrt(4 * A1 / Math.PI) * 1000);
+    const hR = Math.ceil(Math.sqrt(A1 / 2) * 1000 / 50) * 50, wR = Math.ceil(A1 / (hR / 1000) * 1000 / 50) * 50;
+    const vD = v.fq / 3600 / (Math.PI * Math.pow(D / 1000, 2) / 4);
+    const dpm = 0.02 * (1.2 * vD * vD / 2) / (D / 1000);
+    const louver = Vact / 3600 / 2 / 0.5;
+    const checks = [chk(OK, `${nf} quạt × ${f(v.fq, 0)} m³/h = ${f(Vact, 0)} m³/h, trao đổi gió ${f(achAct, 1)} lần/h`)];
+    if (dtAct != null && v.mode === 'heat') checks.push(chk(dtAct <= v.dT ? OK : WARN, `Nhiệt độ trong xưởng cao hơn ngoài trời ≈ ${f(dtAct, 1)} K`));
+    checks.push(chk(INFO, `Cần cửa lấy gió bổ sung ≈ ${f(louver, 1)} m² (tốc độ qua cửa 2 m/s, cửa chớp thoáng 50%) – thiếu gió bổ sung, quạt sẽ không đạt lưu lượng.`));
+    if (achAct > 40) checks.push(chk(WARN, 'Trao đổi gió rất lớn: cân nhắc hút nhiệt cục bộ tại nguồn (chụp hút máy sấy) hoặc làm mát bằng tấm cooling pad.'));
+    return {
+      main: [
+        { l: 'Lưu lượng gió cần', v: f(need, 0), u: 'm³/h', sub: v.mode === 'heat' ? `Theo nhiệt thải, tương đương ${f(need / V, 1)} lần/h` : `${f(v.ach)} lần/h × ${f(V, 0)} m³`, s: 'hl' },
+        { l: 'Số quạt hút', v: String(nf), u: 'quạt', sub: `Tổng ${f(kW, 1)} kW điện` },
+        { l: 'Ống gió tròn / chữ nhật', v: `Ø${D}`, u: 'mm', sub: `hoặc ${wR} × ${hR} mm cho 1 quạt` },
+        { l: 'Cửa lấy gió bổ sung', v: f(louver, 1), u: 'm²', sub: 'Tổng diện tích cửa chớp' }
+      ],
+      checks,
+      rows: [
+        ['Thể tích xưởng', f(V, 0), 'm³'],
+        ['Lưu lượng theo nhiệt thải', Vheat ? f(Vheat, 0) : '—', 'm³/h'],
+        ['Lưu lượng theo trao đổi gió', Vach ? f(Vach, 0) : '—', 'm³/h'],
+        ['Vận tốc trong ống tròn', f(vD, 1), 'm/s'],
+        ['Tổn thất ma sát ống tròn (ước tính)', f(dpm, 2), 'Pa/m']
+      ],
+      steps: [
+        `V = Q / (ρ × c<sub>p</sub> × Δt) = ${f(v.Q || 0)} / (1,2 × 1,005 × ${f(v.dT)}) = ${f(Vheat / 3600, 2)} m³/s = ${f(Vheat, 0)} m³/h`,
+        `Số quạt = ${f(need, 0)} / ${f(v.fq, 0)} = ${f(need / v.fq, 2)} → ${nf} quạt`,
+        `Ống: A = V / v = ${f(v.fq / 3600, 3)} / ${f(vd)} = ${f(A1, 3)} m² → Ø${D} mm; chữ nhật tỷ lệ 2:1 → ${wR} × ${hR} mm`,
+        `Ma sát: Δp/L ≈ λ × (ρv²/2) / D với λ ≈ 0,02 → ${f(dpm, 2)} Pa/m`
+      ]
+    };
+  }
+});
+
+/* ===== 5.4 Độ ẩm kho giấy ===== */
+const SEASON = { nom: [22, 95], summer: [35, 58], rain: [30, 85], dry: [15, 45] };
+M({
+  id: 'humid', grp: 3, tag: 'ĐA', name: 'Độ ẩm kho giấy, xưởng in',
+  desc: 'Tính lượng ẩm cần hút hoặc cần bổ sung để giữ độ ẩm cho giấy, điểm sương và nguy cơ đọng sương trên cuộn giấy, chọn máy hút ẩm hoặc tạo ẩm.',
+  ref: 'Tâm lý học không khí (ASHRAE Fundamentals, công thức Magnus); khuyến nghị bảo quản giấy 45–55% RH',
+  fields: [
+    { type: 'sec', label: 'Kho hoặc xưởng' },
+    { id: 'L', type: 'num', label: 'Chiều dài', unit: 'm', def: 50 },
+    { id: 'W', type: 'num', label: 'Chiều rộng', unit: 'm', def: 30 },
+    { id: 'H', type: 'num', label: 'Chiều cao', unit: 'm', def: 8 },
+    { id: 'tin', type: 'num', label: 'Nhiệt độ trong kho', unit: '°C', def: 26 },
+    { id: 'rhin', type: 'num', label: 'Độ ẩm mong muốn', unit: '%', def: 52, help: 'Giấy, bao bì: 45–55%. Phòng in offset: 50–55% ở 23–25 °C.' },
+    { id: 'ach', type: 'num', label: 'Gió ngoài lọt vào, thông gió', unit: 'lần/h', def: 0.8, help: 'Kho kín, cửa cuốn: 0,3–0,5; cửa mở thường xuyên cho xe nâng: 1–2.' },
+    { type: 'sec', label: 'Thời tiết ngoài trời' },
+    { id: 'season', type: 'sel', label: 'Kịch bản', opts: [['nom', 'Nồm ẩm miền Bắc (22 °C, 95%)'], ['rain', 'Mùa mưa (30 °C, 85%)'], ['summer', 'Hè nắng nóng (35 °C, 58%)'], ['dry', 'Hanh khô mùa đông (15 °C, 45%)'], ['custom', 'Tự nhập']], def: 'nom' },
+    { id: 'tout', type: 'num', label: 'Nhiệt độ ngoài trời', unit: '°C', def: 22, show: v => v.season === 'custom' },
+    { id: 'rhout', type: 'num', label: 'Độ ẩm ngoài trời', unit: '%', def: 95, show: v => v.season === 'custom' },
+    { type: 'sec', label: 'Cuộn giấy' },
+    { id: 'tp', type: 'num', label: 'Nhiệt độ bề mặt cuộn giấy, sàn, tường lạnh', unit: '°C', def: 20, help: 'Giấy vừa nhập từ kho lạnh, sàn bê tông buổi sáng thường lạnh hơn không khí.' }
+  ],
+  calc(v) {
+    const V = v.L * v.W * v.H;
+    if (!(V > 0)) return { error: 'Nhập kích thước kho.' };
+    const [tout, rhout] = v.season === 'custom' ? [v.tout, v.rhout] : SEASON[v.season];
+    if (!(v.rhin > 0 && v.rhin < 100 && rhout > 0 && rhout <= 100)) return { error: 'Độ ẩm phải trong khoảng 1–100%.' };
+    const wi = wAbs(v.tin, v.rhin), wo = wAbs(tout, rhout);
+    const Tdi = dewFromW(wi), Tdo = dewFromW(wo);
+    const Vair = (v.ach || 0) * V, mair = 1.2 * Vair;
+    const dm = mair * (wo - wi);
+    const need = Math.abs(dm) * 1.2, lat = Math.abs(dm) * 2501 / 3600;
+    const dehum = dm > 0;
+    const checks = [];
+    if (dehum) checks.push(chk(WARN, `Không khí ngoài ẩm hơn (${f(wo * 1000, 1)} g/kg so với ${f(wi * 1000, 1)} g/kg) → cần hút ẩm ${f(need, 1)} kg/h, đồng thời giữ kho kín.`));
+    else checks.push(chk(WARN, `Không khí ngoài khô hơn → cần bổ sung ẩm ${f(need, 1)} kg/h để giữ ${f(v.rhin)}%, tránh giấy co, cong vênh, tĩnh điện.`));
+    const risk = v.tp < Tdi + 1;
+    checks.push(chk(risk ? BAD : OK, risk ? `Bề mặt ${f(v.tp)} °C thấp hơn hoặc sát điểm sương trong kho ${f(Tdi, 1)} °C → đọng sương trên cuộn giấy, sàn. Giữ nguyên màng bọc cuộn giấy đến khi nhiệt độ cân bằng (thường 24–48 giờ).` : `Bề mặt ${f(v.tp)} °C cao hơn điểm sương trong kho ${f(Tdi, 1)} °C – không đọng sương.`));
+    if (Tdo > v.tp) checks.push(chk(WARN, `Điểm sương không khí ngoài ${f(Tdo, 1)} °C > ${f(v.tp)} °C: mở cửa đón gió ẩm vào sẽ gây đọng sương ngay – hạn chế mở cửa, dùng rèm gió.`));
+    return {
+      main: [
+        { l: dehum ? 'Cần hút ẩm' : 'Cần tạo ẩm', v: f(need, 1), u: 'kg/h', sub: dehum ? `≈ ${f(need * 24, 0)} lít/ngày (đã dư 20%)` : `≈ ${f(need * 24, 0)} lít nước/ngày (đã dư 20%)`, s: 'hl' },
+        { l: 'Điểm sương trong kho', v: f(Tdi, 1), u: '°C', sub: `Ngoài trời ${f(Tdo, 1)} °C` },
+        { l: 'Độ chứa hơi trong / ngoài', v: `${f(wi * 1000, 1)} / ${f(wo * 1000, 1)}`, u: 'g/kg', sub: `Ngoài trời ${f(tout)} °C, ${f(rhout)}%` },
+        { l: 'Nhiệt ẩn tương ứng', v: f(lat, 1), u: 'kW', sub: dehum ? 'Tải ẩm cho hệ hút ẩm/điều hòa' : 'Nhiệt cần để bốc hơi nước' }
+      ],
+      checks,
+      rows: [
+        ['Thể tích kho', f(V, 0), 'm³'],
+        ['Lưu lượng gió ngoài', f(Vair, 0), 'm³/h'],
+        ...(dehum ? [['Máy hút ẩm công nghiệp (tổng)', f(need * 24, 0), 'lít/ngày ở điều kiện định mức 30 °C/80%']] : [
+          ['Tạo ẩm bằng hơi (điện trở)', `≈ ${f(need * 0.75, 1)}`, 'kW điện'],
+          ['Tạo ẩm phun sương cao áp', `≈ ${f(need * 0.01 + 0.3, 1)}`, 'kW điện, đồng thời làm mát ' + f(need * 0.69, 1) + ' kW']])
+      ],
+      steps: [
+        'Áp suất hơi bão hòa p<sub>s</sub> = 610,94 × e<sup>17,625·t/(t + 243,04)</sup> (Pa); độ chứa hơi w = 0,622 × φ·p<sub>s</sub> / (p − φ·p<sub>s</sub>)',
+        `w<sub>trong</sub> = ${f(wi * 1000, 2)} g/kg; w<sub>ngoài</sub> = ${f(wo * 1000, 2)} g/kg`,
+        `Lượng ẩm = ρ × V × Δw = 1,2 × ${f(Vair, 0)} × ${f(wo - wi, 5)} = ${f(dm, 2)} kg/h (dương: thừa ẩm, âm: thiếu ẩm)`,
+        `Điểm sương trong kho = ${f(Tdi, 1)} °C`
+      ],
+      notes: ['Chưa kể ẩm từ người, sàn ướt và giấy nhả ẩm. Công suất máy hút ẩm ghi trên nhãn ở 30 °C/80% – ở 26 °C/55% thực tế chỉ còn khoảng 40–50%, cần chọn dư.']
+    };
+  }
+});
+
+/* ===== 6.1 Khí nén: nhu cầu và máy nén ===== */
+const CMP_KW = [5.5, 7.5, 11, 15, 18.5, 22, 30, 37, 45, 55, 75, 90, 110, 132, 160, 200, 250, 315];
+const RCV = [300, 500, 1000, 1500, 2000, 3000, 4000, 5000, 6000, 8000, 10000];
+M({
+  id: 'air', grp: 4, tag: 'KN', name: 'Nhu cầu khí nén & chọn máy nén',
+  desc: 'Tổng hợp nhu cầu khí nén theo thiết bị, chọn máy nén, bình chứa, máy sấy, cấp chất lượng khí, lượng nước ngưng và chi phí điện.',
+  ref: 'Atlas Copco Compressed Air Manual; ISO 8573-1 (chất lượng khí nén); ISO 1217 (FAD)',
+  fields: [
+    { type: 'sec', label: 'Thiết bị dùng khí' },
+    {
+      id: 'cons', type: 'table', label: 'Danh sách thiết bị', help: 'Lưu lượng khi làm việc lấy theo catalogue (Nl/min – lít khí tự do/phút). Hệ số làm việc: tỷ lệ thời gian thiết bị dùng khí.',
+      cols: [{ id: 'ten', label: 'Thiết bị', type: 'text', w: '40%' }, { id: 'sl', label: 'SL', type: 'num' }, { id: 'q', label: 'Nl/min mỗi cái', type: 'num' }, { id: 'duty', label: 'Làm việc (%)', type: 'num' }],
+      newRow: { ten: '', sl: 1, q: 100, duty: 50 },
+      def: [
+        { ten: 'Cơ cấu khí nén máy xeo/sóng', sl: 1, q: 6000, duty: 80 },
+        { ten: 'Thổi mép giấy, dao cắt', sl: 4, q: 600, duty: 50 },
+        { ten: 'Máy in (kẹp, nâng giấy)', sl: 3, q: 400, duty: 60 },
+        { ten: 'Xi lanh máy dán thùng', sl: 6, q: 150, duty: 40 },
+        { ten: 'Súng thổi bụi, vệ sinh', sl: 8, q: 250, duty: 15 }
+      ]
+    },
+    { type: 'sec', label: 'Hệ số và áp suất' },
+    { id: 'ks', type: 'num', label: 'Hệ số đồng thời', def: 0.9 },
+    { id: 'leak', type: 'num', label: 'Rò rỉ', unit: '%', def: 10, help: 'Hệ thống bảo trì tốt 5–10%; không kiểm tra định kỳ 20–30%.' },
+    { id: 'res', type: 'num', label: 'Dự phòng phát triển', unit: '%', def: 20 },
+    { id: 'preq', type: 'num', label: 'Áp suất cần tại thiết bị', unit: 'bar g', def: 6 },
+    { id: 'pdrop', type: 'num', label: 'Tổn thất qua sấy, lọc, đường ống', unit: 'bar', def: 1 },
+    { type: 'sec', label: 'Máy nén' },
+    { id: 'type', type: 'sel', label: 'Loại máy nén', opts: [['fixed', 'Trục vít tốc độ cố định'], ['vsd', 'Trục vít biến tần (VSD)']], def: 'fixed' },
+    { id: 'sp', type: 'num', label: 'Suất tiêu hao điện ở 7 bar', unit: 'kW/(m³/min)', def: 6.5, help: 'Máy trục vít có dầu 6–7; theo catalogue ISO 1217.' },
+    { id: 'n', type: 'sel', label: 'Số máy nén', opts: [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], def: '2' },
+    { id: 'red', type: 'sel', label: 'Dự phòng', opts: [['n1', 'N+1 (1 máy dự phòng)'], ['none', 'Không, các máy cùng chạy']], def: 'n1', show: v => +v.n > 1 },
+    { id: 'dryer', type: 'sel', label: 'Máy sấy khí', opts: [['ref', 'Sấy lạnh – điểm sương +3 °C'], ['des', 'Sấy hấp thụ – điểm sương −40 °C']], def: 'ref' },
+    { id: 'tin', type: 'num', label: 'Nhiệt độ khí hút vào', unit: '°C', def: 35 },
+    { id: 'rhin', type: 'num', label: 'Độ ẩm khí hút vào', unit: '%', def: 80 },
+    { type: 'sec', label: 'Chi phí' },
+    { id: 'hours', type: 'num', label: 'Số giờ chạy/năm', unit: 'h', def: 7000 },
+    { id: 'price', type: 'num', label: 'Giá điện bình quân', unit: 'đ/kWh', def: 2000 }
+  ],
+  calc(v) {
+    const rows = (v.cons || []).filter(r => r.sl > 0 && r.q > 0);
+    if (!rows.length) return { error: 'Nhập ít nhất một thiết bị dùng khí.' };
+    let sum = 0; const body = [];
+    rows.forEach(r => { const d = clamp(r.duty > 0 ? r.duty : 100, 1, 100); const q = r.sl * r.q * d / 100; sum += q; body.push([r.ten || '—', f(r.sl), f(r.q, 0), f(d, 0), f(q, 0)]); });
+    body.push({ cls: 'tot', cells: ['Tổng', '', '', '', f(sum, 0)] });
+    const ks = v.ks > 0 ? Math.min(v.ks, 1) : 1;
+    const Qm = sum / 1000 * ks, Qleak = Qm * (v.leak || 0) / 100, Qd = (Qm + Qleak) * (1 + (v.res || 0) / 100);
+    const pset = (v.preq || 6) + (v.pdrop || 0);
+    const SPa = (v.sp > 0 ? v.sp : 6.5) * (1 + 0.07 * (pset - 7));
+    const n = +v.n || 1, n1 = n > 1 && v.red === 'n1', run = n1 ? n - 1 : n;
+    const kWreq = Qd / run * SPa, kW = nextStd(CMP_KW, kWreq);
+    if (!kW) return { error: `Mỗi máy cần ≈ ${f(kWreq, 0)} kW – tăng số máy nén.` };
+    const FAD = kW / SPa;
+    const vsd = v.type === 'vsd';
+    const qc = FAD * 1000 / 60;
+    const Vr = 0.25 * qc * 1 / ((1 / 30) * 0.5) * (vsd ? 0.5 : 1);
+    const rcv = nextStd(RCV, Vr) || Math.ceil(Vr / 1000) * 1000;
+    const dryerCap = run * FAD * 1.2;
+    const pdp = v.dryer === 'des' ? -40 : 3;
+    const pabs = (pset + 1.013) * 1e5;
+    const w1 = wAbs(v.tin || 35, v.rhin || 80, 101325), w2 = 0.622 * pws(pdp) / (pabs - pws(pdp));
+    const mAir = 1.204 * (Qm + Qleak) * 60;
+    const cond = Math.max(0, mAir * (w1 - w2));
+    const Pavg = (Qm + Qleak) * SPa;
+    const E = Pavg * (v.hours || 0), cost = E * (v.price || 0);
+    const Im = motorAmp(kW);
+    const checks = [
+      chk(OK, `${n} máy × ${kW} kW${n1 ? ' (1 dự phòng)' : ''}, mỗi máy FAD ≈ ${f(FAD, 2)} m³/min ở ${f(pset, 1)} bar g`),
+      chk(pset > 7.5 ? WARN : OK, `Áp suất đặt ${f(pset, 1)} bar g. Mỗi 1 bar giảm được tiết kiệm ≈ 7% điện (≈ ${f(E * 0.07 / 1000, 0)} MWh/năm).`),
+      chk(INFO, v.dryer === 'des' ? 'Sấy hấp thụ đạt độ ẩm class 2 – phù hợp khí tiếp xúc trực tiếp bao bì thực phẩm theo BCAS: ISO 8573-1 [2:2:1] (cần thêm lọc tinh 0,01 µm và lọc than hoạt tính, hoặc máy nén không dầu).' : 'Sấy lạnh đạt độ ẩm class 4 – đủ cho khí không tiếp xúc sản phẩm (BCAS: ISO 8573-1 [2:4:2]). Khí tiếp xúc trực tiếp bao bì thực phẩm cần [2:2:1]: sấy hấp thụ, lọc tinh và lọc than hoạt tính.')
+    ];
+    if ((v.leak || 0) > 15) checks.push(chk(WARN, `Rò rỉ ${f(v.leak)}% – nên kiểm tra rò rỉ định kỳ (xem module Rò rỉ khí nén).`));
+    return {
+      main: [
+        { l: 'Máy nén đề xuất', v: `${n} × ${kW}`, u: 'kW', sub: `FAD ${f(FAD, 1)} m³/min mỗi máy, ${vsd ? 'biến tần' : 'tốc độ cố định'}`, s: 'hl' },
+        { l: 'Nhu cầu thiết kế', v: f(Qd, 2), u: 'm³/min', sub: `Trung bình ${f(Qm + Qleak, 2)} m³/min gồm rò rỉ` },
+        { l: 'Bình chứa khí', v: f(rcv, 0), u: 'lít', sub: `Tính toán ${f(Vr, 0)} lít` },
+        { l: 'Điện năng/năm', v: f(E / 1000, 0), u: 'MWh', sub: `${f(cost / 1e6, 0)} triệu đồng` }
+      ],
+      checks,
+      rows: [
+        ['Tổng lưu lượng thiết bị (× Ks)', f(Qm, 2), 'm³/min'],
+        ['Rò rỉ', f(Qleak, 2), 'm³/min'],
+        ['Áp suất đặt máy nén', f(pset, 1), 'bar g'],
+        ['Suất tiêu hao điện hiệu chỉnh theo áp', f(SPa, 2), 'kW/(m³/min)'],
+        ['Dòng điện động cơ mỗi máy', f(Im, 0), 'A ở 400 V'],
+        ['Máy sấy (≥ 1,2 × FAD các máy chạy)', f(dryerCap, 1), `m³/min, điểm sương ${pdp} °C`],
+        ['Lọc', v.dryer === 'des' ? 'Lọc thô 1 µm trước sấy, lọc bụi 1 µm sau sấy' : 'Lọc thô 1 µm + lọc tinh 0,01 µm sau sấy', ''],
+        ['Nước ngưng ở máy nén và máy sấy', f(cond, 1), `lít/h (≈ ${f(cond * 24, 0)} lít/ngày)`],
+        ['Chi phí điện do rò rỉ/năm', f(Qleak * SPa * (v.hours || 0) * (v.price || 0) / 1e6, 0), 'triệu đồng']
+      ],
+      tables: [{ title: 'Tổng hợp nhu cầu', head: ['Thiết bị', 'SL', 'Nl/min', '%', 'Nl/min TB'], body }],
+      steps: [
+        `Q = Σ(SL × q × hệ số làm việc) × K<sub>s</sub> = ${f(sum, 0)} × ${f(ks, 2)} = ${f(Qm * 1000, 0)} Nl/min`,
+        `Q<sub>TK</sub> = Q × (1 + rò rỉ) × (1 + dự phòng) = ${f(Qd, 2)} m³/min`,
+        `Suất tiêu hao ở ${f(pset, 1)} bar = ${f(v.sp)} × (1 + 7% × (${f(pset, 1)} − 7)) = ${f(SPa, 2)} kW/(m³/min) → ${f(Qd / run, 2)} × ${f(SPa, 2)} = ${f(kWreq, 1)} kW → chọn ${kW} kW`,
+        `Bình chứa V = 0,25 × q<sub>c</sub> × p<sub>1</sub> / (f<sub>max</sub> × Δp) = 0,25 × ${f(qc, 1)} × 1 / (1/30 × 0,5)${vsd ? ' × 0,5 (VSD)' : ''} = ${f(Vr, 0)} lít`,
+        `Nước ngưng = ṁ<sub>khí</sub> × (w<sub>vào</sub> − w<sub>ra</sub>) = ${f(mAir, 0)} × (${f(w1, 5)} − ${f(w2, 5)}) = ${f(cond, 2)} kg/h`
+      ],
+      notes: ['Bình chứa tính cho máy tải/không tải, 2 chu kỳ/phút, dải áp 0,5 bar. Nên có thêm bình nhỏ gần các hộ dùng khí lớn, dao động.']
+    };
+  }
+});
+
+/* ===== 6.2 Đường ống khí nén ===== */
+M({
+  id: 'airpipe', grp: 4, tag: 'ỐK', name: 'Đường ống khí nén',
+  desc: 'Chọn đường kính ống khí nén theo lưu lượng, chiều dài và tổn thất áp cho phép; kiểm tra vận tốc.',
+  ref: 'Atlas Copco Compressed Air Manual: Δp = 450 × q<sub>c</sub><sup>1,85</sup> × l / (d<sup>5</sup> × p)',
+  fields: [
+    { id: 'Q', type: 'num', label: 'Lưu lượng (FAD)', unit: 'm³/min', def: 9 },
+    { id: 'p', type: 'num', label: 'Áp suất làm việc', unit: 'bar g', def: 7 },
+    { id: 'L', type: 'num', label: 'Chiều dài ống', unit: 'm', def: 200 },
+    { id: 'fit', type: 'num', label: 'Chiều dài tương đương co, tê, van', unit: '% chiều dài', def: 30 },
+    { id: 'layout', type: 'sel', label: 'Kiểu mạng ống', opts: [['line', 'Ống cụt (một chiều)'], ['ring', 'Mạch vòng']], def: 'ring' },
+    { id: 'dp', type: 'num', label: 'Tổn thất áp cho phép', unit: 'bar', def: 0.1, help: 'Ống chính ≤ 0,1 bar; toàn hệ (ống + nhánh) nên ≤ 0,3 bar.' }
+  ],
+  calc(v) {
+    if (!(v.Q > 0 && v.L > 0 && v.dp > 0)) return { error: 'Nhập lưu lượng, chiều dài và tổn thất áp cho phép.' };
+    const ring = v.layout === 'ring';
+    const qc = v.Q * 1000 / 60 / (ring ? 2 : 1), l = v.L * (1 + (v.fit || 0) / 100) / (ring ? 2 : 1), pa = (v.p || 7) + 1.013;
+    const dmin = Math.pow(450 * Math.pow(qc, 1.85) * l / (v.dp * pa), 0.2);
+    const dpOf = d => 450 * Math.pow(qc, 1.85) * l / (Math.pow(d, 5) * pa);
+    const vel = d => (qc / 1000) * (1.013 / pa) / (Math.PI * Math.pow(d / 1000, 2) / 4);
+    let i = PIPE_ID.findIndex(d => d >= dmin); if (i < 0) i = PIPE_ID.length - 1;
+    const d = PIPE_ID[i], dn = PIPE_DN[i], dpA = dpOf(d), vA = vel(d);
+    const body = [];
+    for (let k = Math.max(0, i - 1); k <= Math.min(PIPE_ID.length - 1, i + 2); k++) body.push({ cls: k === i ? 'hl' : '', cells: [`DN${PIPE_DN[k]}`, f(PIPE_ID[k], 1), f(dpOf(PIPE_ID[k]), 3), f(vel(PIPE_ID[k]), 1)] });
+    return {
+      main: [
+        { l: 'Ống đề xuất', v: `DN${dn}`, sub: `Đường kính trong ${f(d, 1)} mm (thép SCH40)`, s: 'hl' },
+        { l: 'Đường kính trong tối thiểu', v: f(dmin, 1), u: 'mm', sub: 'Dùng để chọn ống nhôm, inox tương đương' },
+        { l: 'Tổn thất áp', v: f(dpA, 3), u: 'bar', sub: `Cho phép ${f(v.dp, 2)} bar` },
+        { l: 'Vận tốc khí', v: f(vA, 1), u: 'm/s', sub: 'Ống chính nên ≤ 6–8 m/s' }
+      ],
+      checks: [chk(dpA <= v.dp ? OK : BAD, `Tổn thất ${f(dpA, 3)} bar ${dpA <= v.dp ? '≤' : '>'} ${f(v.dp, 2)} bar`), chk(vA <= 8 ? OK : WARN, `Vận tốc ${f(vA, 1)} m/s${vA > 8 ? ' – cao, dễ cuốn nước ngưng vào thiết bị' : ''}`), ...(ring ? [chk(INFO, 'Mạch vòng: mỗi nhánh tính với 1/2 lưu lượng và 1/2 chiều dài.')] : [])],
+      rows: [['Lưu lượng tính toán', f(qc, 1), 'L/s'], ['Chiều dài tính toán', f(l, 0), 'm'], ['Áp suất tuyệt đối', f(pa, 2), 'bar']],
+      tables: [{ title: 'So sánh cỡ ống', head: ['Ống', 'ID (mm)', 'Δp (bar)', 'v (m/s)'], body }],
+      steps: [`d = (450 × q<sub>c</sub><sup>1,85</sup> × l / (Δp × p))<sup>1/5</sup> = (450 × ${f(qc, 1)}<sup>1,85</sup> × ${f(l, 0)} / (${f(v.dp, 2)} × ${f(pa, 2)}))<sup>0,2</sup> = ${f(dmin, 1)} mm`]
+    };
+  }
+});
+
+/* ===== 6.3 Rò rỉ khí nén ===== */
+M({
+  id: 'leak', grp: 4, tag: 'RR', name: 'Chi phí rò rỉ khí nén',
+  desc: 'Tính lưu lượng khí thất thoát qua các lỗ rò theo đường kính và áp suất, quy ra kW, kWh và tiền điện mỗi năm.',
+  ref: 'Lưu lượng qua lỗ ở chế độ tới hạn: ṁ = 0,0404 × C<sub>d</sub> × A × p / √T (không khí)',
+  fields: [
+    { id: 'p', type: 'num', label: 'Áp suất hệ thống', unit: 'bar g', def: 7 },
+    {
+      id: 'holes', type: 'table', label: 'Các điểm rò', help: 'Tiếng xì nghe rõ ≈ lỗ 1–2 mm; khớp nối lỏng, ống nứt ≈ 3 mm trở lên.',
+      cols: [{ id: 'ten', label: 'Vị trí', type: 'text', w: '46%' }, { id: 'd', label: 'Đ.kính lỗ (mm)', type: 'num' }, { id: 'n', label: 'Số điểm', type: 'num' }],
+      newRow: { ten: '', d: 1, n: 1 },
+      def: [{ ten: 'Khớp nối nhanh, van xả', d: 1, n: 10 }, { ten: 'Ống mềm, co nối', d: 2, n: 5 }, { ten: 'Ống nứt, gioăng hỏng', d: 3, n: 2 }]
+    },
+    { id: 'cd', type: 'num', label: 'Hệ số lưu lượng Cd', def: 0.65, help: 'Lỗ cạnh sắc ≈ 0,6–0,65; lỗ tròn nhẵn đến 0,97.' },
+    { id: 'sp', type: 'num', label: 'Suất tiêu hao điện máy nén', unit: 'kW/(m³/min)', def: 6.5 },
+    { id: 'cap', type: 'num', label: 'Tổng công suất máy nén đang chạy (FAD)', unit: 'm³/min', def: 10 },
+    { id: 'hours', type: 'num', label: 'Số giờ hệ thống có áp/năm', unit: 'h', def: 8000 },
+    { id: 'price', type: 'num', label: 'Giá điện bình quân', unit: 'đ/kWh', def: 2000 }
+  ],
+  calc(v) {
+    const rows = (v.holes || []).filter(r => r.d > 0 && r.n > 0);
+    if (!rows.length || !(v.p > 0)) return { error: 'Nhập áp suất và ít nhất một điểm rò.' };
+    const P = (v.p + 1.013) * 1e5, T = 293.15, cd = v.cd > 0 ? v.cd : 0.65;
+    let Qt = 0; const body = [];
+    rows.forEach(r => {
+      const A = Math.PI * Math.pow(r.d / 1000, 2) / 4, m = 0.0404 * cd * A * P / Math.sqrt(T), q = m / 1.204 * 60 * r.n;
+      Qt += q; body.push([r.ten || '—', f(r.d, 1), f(r.n), f(q * 1000 / 60, 1), f(q * (v.sp || 6.5), 2)]);
+    });
+    body.push({ cls: 'tot', cells: ['Tổng', '', '', f(Qt * 1000 / 60, 1), f(Qt * (v.sp || 6.5), 2)] });
+    const kW = Qt * (v.sp || 6.5), E = kW * (v.hours || 0), cost = E * (v.price || 0);
+    const pct = v.cap > 0 ? Qt / v.cap * 100 : null;
+    return {
+      main: [
+        { l: 'Tiền điện mất/năm', v: f(cost / 1e6, 1), u: 'triệu đ', sub: `${f(E, 0)} kWh`, s: 'hl' },
+        { l: 'Khí rò rỉ', v: f(Qt, 2), u: 'm³/min', sub: `${f(Qt * 1000 / 60, 1)} L/s` },
+        { l: 'Công suất điện lãng phí', v: f(kW, 1), u: 'kW' },
+        { l: 'Tỷ lệ so với máy nén', v: pct != null ? f(pct, 0) : '—', u: '%', sub: pct != null ? `trên ${f(v.cap)} m³/min` : '' }
+      ],
+      checks: pct != null ? [chk(pct <= 10 ? OK : pct <= 20 ? WARN : BAD, `Rò rỉ ${f(pct, 0)}% công suất máy nén ${pct <= 10 ? '– chấp nhận được' : '– nên tổ chức dò và sửa rò rỉ (máy dò siêu âm), thường hoàn vốn dưới 3 tháng'}`)] : [],
+      tables: [{ title: 'Chi tiết điểm rò', head: ['Vị trí', 'd (mm)', 'SL', 'L/s', 'kW'], body }],
+      steps: [`ṁ = 0,0404 × C<sub>d</sub> × A × p / √T; p = ${f(P / 1e5, 2)} bar tuyệt đối, T = 293 K; Q = ṁ / 1,204 kg/m³`, `P<sub>điện</sub> = Q × ${f(v.sp || 6.5, 1)} kW/(m³/min) = ${f(kW, 2)} kW`]
+    };
+  }
+});
+
+/* ===== 7.1 Bơm nước ===== */
+M({
+  id: 'pump', grp: 5, tag: 'BƠM', name: 'Chọn bơm và đường ống nước',
+  desc: 'Tính cột áp toàn phần (tĩnh + ma sát), chọn cỡ ống theo vận tốc, công suất trục và động cơ bơm.',
+  ref: 'Hazen-Williams: h<sub>f</sub> = 10,67 × L × Q<sup>1,852</sup> / (C<sup>1,852</sup> × d<sup>4,87</sup>); P = ρ·g·Q·H / η',
+  fields: [
+    { type: 'sec', label: 'Yêu cầu' },
+    { id: 'Q', type: 'num', label: 'Lưu lượng', unit: 'm³/h', def: 100 },
+    { id: 'Hs', type: 'num', label: 'Cột áp tĩnh + áp dư đầu ra', unit: 'm', def: 20, help: 'Chênh cao hình học + áp cần ở cuối tuyến (10 m ≈ 1 bar). Hệ tuần hoàn kín: 0.' },
+    { id: 'Hx', type: 'num', label: 'Tổn thất thiết bị (bình, trao đổi nhiệt, van)', unit: 'm', def: 0, help: 'VD bình bay hơi chiller 5–8 m, lọc Y 1–2 m.' },
+    { type: 'sec', label: 'Đường ống' },
+    { id: 'L', type: 'num', label: 'Chiều dài ống', unit: 'm', def: 150 },
+    { id: 'fit', type: 'num', label: 'Chiều dài tương đương co, tê, van', unit: '% chiều dài', def: 30 },
+    { id: 'C', type: 'sel', label: 'Vật liệu ống', opts: [['120', 'Thép mới (C = 120)'], ['100', 'Thép cũ, gang (C = 100)'], ['140', 'PPR, HDPE, inox (C = 140)']], def: '120' },
+    { id: 'dn', type: 'sel', label: 'Cỡ ống', opts: [['auto', 'Tự động theo vận tốc'], ...PIPE_DN.map(d => [String(d), 'DN' + d])], def: 'auto' },
+    { id: 'vmax', type: 'num', label: 'Vận tốc tối đa', unit: 'm/s', def: 2, show: v => v.dn === 'auto' },
+    { type: 'sec', label: 'Bơm' },
+    { id: 'eta', type: 'num', label: 'Hiệu suất bơm', unit: '%', def: 75 },
+    { id: 'margin', type: 'num', label: 'Dự phòng cột áp', unit: '%', def: 10 }
+  ],
+  calc(v) {
+    if (!(v.Q > 0)) return { error: 'Nhập lưu lượng.' };
+    const Qs = v.Q / 3600;
+    let pp;
+    if (v.dn === 'auto') pp = pickPipe(Qs, v.vmax > 0 ? v.vmax : 2);
+    else { const i = PIPE_DN.indexOf(+v.dn); pp = { i, dn: PIPE_DN[i], id: PIPE_ID[i], v: Qs / pipeArea(i) }; }
+    const d = pp.id / 1000, C = +v.C || 120, Leq = (v.L || 0) * (1 + (v.fit || 0) / 100);
+    const hf = 10.67 * Leq * Math.pow(Qs, 1.852) / (Math.pow(C, 1.852) * Math.pow(d, 4.87));
+    const H = ((v.Hs || 0) + (v.Hx || 0) + hf) * (1 + (v.margin || 0) / 100);
+    const eta = clamp(v.eta || 75, 20, 95) / 100;
+    const Ph = 9.81 * Qs * H, Psh = Ph / eta, Pm = motorFor(Psh * 1.1);
+    const I = motorAmp(Pm);
+    const per100 = Leq > 0 ? hf / Leq * 100 : 0;
+    const checks = [
+      chk(pp.v >= 0.6 && pp.v <= 3 ? OK : WARN, `Vận tốc trong ống ${f(pp.v, 2)} m/s${pp.v < 0.6 ? ' – thấp, dễ lắng cặn, ống quá lớn' : pp.v > 3 ? ' – cao, ồn và mòn ống' : ''}`),
+      chk(per100 <= 5 ? OK : WARN, `Tổn thất ma sát ${f(per100, 2)} m/100 m ống${per100 > 5 ? ' – lớn, nên tăng cỡ ống' : ''}`),
+      chk(INFO, `Chọn bơm có điểm làm việc Q = ${f(v.Q)} m³/h, H = ${f(H, 1)} m nằm gần điểm hiệu suất cao nhất (BEP) trên đường đặc tính.`)
+    ];
+    return {
+      main: [
+        { l: 'Cột áp bơm', v: f(H, 1), u: 'm', sub: `≈ ${f(H / 10.2, 2)} bar`, s: 'hl' },
+        { l: 'Động cơ bơm', v: String(Pm), u: 'kW', sub: `Công suất trục ${f(Psh, 2)} kW, I ≈ ${f(I, 0)} A` },
+        { l: 'Cỡ ống', v: `DN${pp.dn}`, sub: `v = ${f(pp.v, 2)} m/s` },
+        { l: 'Tổn thất ma sát', v: f(hf, 2), u: 'm', sub: `${f(per100, 2)} m/100 m` }
+      ],
+      checks,
+      rows: [
+        ['Chiều dài tương đương', f(Leq, 0), 'm'],
+        ['Đường kính trong ống', f(pp.id, 1), 'mm'],
+        ['Công suất thủy lực', f(Ph, 2), 'kW'],
+        ['Hiệu suất bơm', f(eta * 100, 0), '%']
+      ],
+      steps: [
+        `h<sub>f</sub> = 10,67 × ${f(Leq, 0)} × ${f(Qs, 4)}<sup>1,852</sup> / (${C}<sup>1,852</sup> × ${f(d, 4)}<sup>4,87</sup>) = ${f(hf, 2)} m`,
+        `H = (H<sub>tĩnh</sub> + H<sub>thiết bị</sub> + h<sub>f</sub>) × ${f(1 + (v.margin || 0) / 100, 2)} = (${f(v.Hs || 0)} + ${f(v.Hx || 0)} + ${f(hf, 2)}) × ${f(1 + (v.margin || 0) / 100, 2)} = ${f(H, 2)} m`,
+        `P<sub>trục</sub> = ρ·g·Q·H / η = 9,81 × ${f(Qs, 4)} × ${f(H, 2)} / ${f(eta, 2)} = ${f(Psh, 2)} kW → động cơ ≥ 1,1 × P<sub>trục</sub> → ${Pm} kW`
+      ],
+      notes: ['Hazen-Williams áp dụng cho nước ở nhiệt độ thường. Với bơm tuần hoàn thay đổi lưu lượng, nên dùng biến tần (xem module Tiết kiệm điện bằng biến tần).']
+    };
+  }
+});
+
+/* ==========================================================================
    GIAO DIỆN – điều hướng, biểu mẫu, hiển thị kết quả
    ========================================================================== */
 (function () {
   'use strict';
   const KEY = 'dien-nha-may:v1', TKEY = 'dien-nha-may:theme';
-  const GROUPS = ['Nguồn và trung thế', 'Phân phối hạ thế', 'Dự phòng và an toàn', 'Tiện ích'];
+  const GROUPS = ['Nguồn và trung thế', 'Phân phối hạ thế', 'Dự phòng và an toàn', 'Điều hòa và thông gió', 'Khí nén', 'Bơm và nước', 'Tiện ích'];
   const $ = (s, r) => (r || document).querySelector(s);
   const clone = o => JSON.parse(JSON.stringify(o));
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -1754,22 +2340,24 @@ if (typeof module !== 'undefined') module.exports = { MODULES, sizeCable, f };
 </svg>`;
 
   function renderHome() {
-    document.title = 'Tính toán điện nhà máy';
+    document.title = 'Tính toán cơ điện nhà máy';
     let h = `<section class="hero">
-      <h1>Tính toán hệ thống điện nhà máy</h1>
-      <p>Chọn một phần tử trên sơ đồ hoặc trong danh sách bên dưới. Kết quả cập nhật ngay khi nhập, số liệu được lưu trên thiết bị này.</p>
+      <h1>Tính toán cơ điện nhà máy</h1>
+      <p>Gồm điện, điều hòa – thông gió, khí nén và bơm. Bấm phần tử trên sơ đồ điện, chọn nhóm bên dưới hoặc dùng menu bên trái. Kết quả cập nhật ngay khi nhập, số liệu được lưu trên thiết bị này.</p>
+      <div class="chips">${GROUPS.map((g, gi) => `<button type="button" class="chip" data-go="${gi}">${g}</button>`).join('')}</div>
       <div class="sld-wrap">${SLD}</div>
       <p class="sld-cap">Bấm vào phần tử trên sơ đồ để mở phần tính tương ứng.<span class="swipe"> Vuốt ngang để xem hết sơ đồ.</span></p>
     </section>`;
     GROUPS.forEach((g, gi) => {
-      h += `<section class="hgrp"><h2>${g}</h2><div class="mlist">`;
+      h += `<section class="hgrp" id="hg-${gi}"><h2>${g}</h2><div class="mlist">`;
       MODULES.filter(m => m.grp === gi).forEach(m => {
         h += `<a class="mrow" href="#${m.id}"><span class="marker">${m.tag}</span><span class="mrow-n">${m.name}</span><span class="mrow-d">${m.desc}</span></a>`;
       });
       h += '</div></section>';
     });
-    h += `<p class="disc">Công cụ hỗ trợ tính sơ bộ theo IEC 60364, IEC 60909, IEC 61439, IEC 62271 và TCVN liên quan. Bảng tra là giá trị tham chiếu theo tiêu chuẩn; kỹ sư cần kiểm tra và đối chiếu catalogue hãng trước khi áp dụng cho thiết kế, mua sắm.</p>`;
+    h += `<p class="disc">Công cụ hỗ trợ tính sơ bộ theo IEC 60364, IEC 60909, IEC 61439, IEC 62271, ASHRAE, ISO 8573-1, Atlas Copco Compressed Air Manual và TCVN liên quan. Bảng tra là giá trị tham chiếu; kỹ sư cần kiểm tra và đối chiếu catalogue hãng trước khi áp dụng cho thiết kế, mua sắm.</p>`;
     $('#main').innerHTML = h;
+    $('#main').querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { const t = document.getElementById('hg-' + b.dataset.go); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
   }
 
   /* ---------- Biểu mẫu ---------- */
@@ -1843,7 +2431,7 @@ if (typeof module !== 'undefined') module.exports = { MODULES, sizeCable, f };
 
   /* ---------- Trang module ---------- */
   function renderModule(m) {
-    document.title = m.name + ' – Tính toán điện nhà máy';
+    document.title = m.name + ' – Tính toán cơ điện nhà máy';
     let raw = rawVals(m), lastR = null;
     $('#main').innerHTML = `
       <div class="mod-head">
