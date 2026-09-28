@@ -692,10 +692,35 @@ const CT_P = [10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 
 const MVC_S = [25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400];
 const MVC_AIR = [140, 170, 200, 245, 295, 340, 385, 435, 510, 580, 665];
 const MVC_GND = [130, 155, 185, 225, 270, 305, 345, 390, 450, 505, 570];
-function mvCable(I, Smin, air) {
+const MV_RHO = { '1.0': 1.10, '1.5': 1.00, '2.0': 0.93, '2.5': 0.87, '3.0': 0.81 };
+const MV_GRP_GND = { touch: [1, 0.80, 0.70, 0.64, 0.59, 0.55], s20: [1, 0.85, 0.75, 0.70, 0.66, 0.63] };
+const MV_GRP_AIR = [1, 0.88, 0.82, 0.79, 0.78, 0.77];
+// Chọn cáp trung thế 3 lõi: I – dòng cần tải, Sreq – tiết diện tối thiểu (ngắn mạch/quy định), K – hệ số hiệu chỉnh tổng
+function mvSize(I, Sreq, air, K, npar) {
   const t = air ? MVC_AIR : MVC_GND;
-  for (let i = 0; i < MVC_S.length; i++) if (MVC_S[i] >= Smin && t[i] >= I) return { S: MVC_S[i], Iz: t[i] };
-  return null;
+  const trial = n => {
+    for (let i = 0; i < MVC_S.length; i++) {
+      if (MVC_S[i] < Sreq) continue;
+      const Izc = t[i] * K * n;
+      if (Izc >= I) return { n, i, S: MVC_S[i], Iz: t[i], Izc };
+    }
+    return null;
+  };
+  let r = null;
+  if (npar === 'auto') { for (let n = 1; n <= 6; n++) { const x = trial(n); if (x && x.S <= 300) { r = x; break; } } }
+  else r = trial(Math.max(1, +npar || 1));
+  if (!r) return null;
+  // Tiết diện nhỏ nhất chỉ xét dòng tải (không xét ngắn mạch/quy định)
+  let iLoad = t.findIndex(x => x * K * r.n >= I);
+  r.byLoad = iLoad >= 0 ? MVC_S[iLoad] : null;
+  r.reason = r.byLoad !== null && r.byLoad >= r.S ? 'dòng tải' : 'ngắn mạch / tiết diện tối thiểu';
+  r.load = I / r.Izc * 100;
+  r.cmp = [];
+  for (let i = Math.max(0, r.i - 2); i <= Math.min(MVC_S.length - 1, r.i + 2); i++) {
+    const Izc = t[i] * K * r.n;
+    r.cmp.push({ S: MVC_S[i], Iz: t[i], Izc, okI: Izc >= I, okS: MVC_S[i] >= Sreq, sel: i === r.i });
+  }
+  return r;
 }
 M({
   id: 'mv', grp: 0, tag: 'TT', name: 'Tủ trung thế & cáp trung thế',
@@ -709,10 +734,17 @@ M({
     { type: 'sec', label: 'Máy biến áp được cấp điện' },
     { id: 'nT', type: 'sel', label: 'Số MBA', opts: [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], def: '2' },
     { id: 'ST', type: 'num', label: 'Công suất mỗi MBA', unit: 'kVA', def: 1250 },
+    { id: 'STf', type: 'num', label: 'Công suất mỗi MBA dự kiến trong tương lai (0 = không tính)', unit: 'kVA', def: 0, help: 'Nhập nếu có kế hoạch nâng công suất MBA hoặc thêm tải. Cáp và thanh cái tủ sẽ chọn theo công suất này; bảo vệ vẫn chỉnh định theo MBA hiện tại.' },
     { id: 'uk', type: 'num', label: 'uk MBA (0 = tự động)', unit: '%', def: 0 },
     { id: 'prot', type: 'sel', label: 'Bảo vệ MBA', opts: [['auto', 'Tự động chọn'], ['fuse', 'Cầu chì + dao cắt tải (LBS)'], ['cb', 'Máy cắt (VCB) + rơ le']], def: 'auto' },
-    { type: 'sec', label: 'Cáp trung thế' },
+    { type: 'sec', label: 'Cáp trung thế (cáp đồng 3 lõi XLPE)' },
     { id: 'inst', type: 'sel', label: 'Cách lắp đặt', opts: [['gnd', 'Chôn đất'], ['air', 'Trong không khí, trên thang cáp']], def: 'gnd' },
+    { id: 'tsoil', type: 'num', label: 'Nhiệt độ đất', unit: '°C', def: 30, show: v => v.inst !== 'air', help: 'Bảng tra IEC 60502-2 lấy ở 20 °C; đất ở Việt Nam thường 25–30 °C.' },
+    { id: 'rho', type: 'sel', label: 'Nhiệt trở suất của đất', opts: [['1.0', '1,0 K·m/W – đất ẩm'], ['1.5', '1,5 K·m/W – bình thường (chuẩn)'], ['2.0', '2,0 K·m/W – đất khô'], ['2.5', '2,5 K·m/W – đất rất khô'], ['3.0', '3,0 K·m/W – cát khô']], def: '1.5', show: v => v.inst !== 'air' },
+    { id: 'tair', type: 'num', label: 'Nhiệt độ không khí', unit: '°C', def: 40, show: v => v.inst === 'air', help: 'Bảng tra lấy ở 30 °C. Hầm cáp, gần lò hơi, máy sấy có thể 40–45 °C.' },
+    { id: 'ncir', type: 'num', label: 'Số mạch cáp đi chung một tuyến', def: 1, help: 'Tính cả cáp trung thế khác đi cùng rãnh hoặc thang cáp.' },
+    { id: 'gap', type: 'sel', label: 'Khoảng cách giữa các cáp', opts: [['touch', 'Đặt sát nhau'], ['s20', 'Cách nhau 0,2 m']], def: 'touch', show: v => v.inst !== 'air' && +v.ncir > 1 },
+    { id: 'npar', type: 'sel', label: 'Số sợi song song mỗi lộ', opts: [['auto', 'Tự động (tối đa 300 mm²/sợi)'], ['1', '1'], ['2', '2'], ['3', '3']], def: 'auto' },
     { id: 'tcl', type: 'num', label: 'Thời gian loại trừ sự cố (kiểm tra cáp)', unit: 's', def: 0.5, help: 'Máy cắt: 0,2–0,5 s gồm cả dự phòng. Cáp sau cầu chì hạn dòng có thể lấy nhỏ hơn.' },
     { id: 'Smin', type: 'num', label: 'Tiết diện tối thiểu theo quy định', unit: 'mm²', def: 50 }
   ],
@@ -721,7 +753,9 @@ M({
     if (!(ST > 0)) return { error: 'Nhập công suất MBA.' };
     if (!(v.Ik > 0)) return { error: 'Nhập dòng ngắn mạch lưới trung thế.' };
     const InT = ST / (SQ3 * U), Itot = n * InT;
-    const Ir = nextStd(IR_MV, Math.max(630, Itot * 1.25));
+    const STf = v.STf > ST ? v.STf : ST, fut = STf > ST;
+    const InF = STf / (SQ3 * U), ItotF = n * InF;
+    const Ir = nextStd(IR_MV, Math.max(630, ItotF * 1.25));
     const Ikr = nextStd(IK_MV, v.Ik);
     if (!Ikr) return { error: 'Dòng ngắn mạch lớn hơn 40 kA – cần thiết kế riêng.' };
     const uk = v.uk > 0 ? v.uk : ukDefault(ST, 'oil');
@@ -733,14 +767,30 @@ M({
     const SminSC = v.Ik * 1000 * Math.sqrt(v.tcl > 0 ? v.tcl : 1) / 143;
     const Sreq = Math.max(SminSC, v.Smin || 0);
     const air = v.inst === 'air';
-    const cT = mvCable(InT, Sreq, air), cIn = n > 1 ? mvCable(Itot, Sreq, air) : null;
+    const nc = clamp(Math.round(v.ncir || 1), 1, 6);
+    const Kt = air ? Math.sqrt(Math.max(90 - (v.tair || 30), 1) / 60) : Math.sqrt(Math.max(90 - (v.tsoil || 20), 1) / 70);
+    const Kr = air ? 1 : (MV_RHO[v.rho] || 1);
+    const Kg = air ? MV_GRP_AIR[nc - 1] : (MV_GRP_GND[v.gap] || MV_GRP_GND.touch)[nc - 1];
+    const K = Kt * Kr * Kg;
+    const cT = mvSize(InF, Sreq, air, K, v.npar), cIn = n > 1 ? mvSize(ItotF, Sreq, air, K, v.npar) : null;
+    if (cT && fut && cT.reason === 'dòng tải') cT.reason = 'dòng tải tương lai';
+    const loadNow = cT ? InT / cT.Izc * 100 : 0;
+    const loadTxt = cT ? (fut ? `mang tải hiện tại ${f(loadNow, 0)}%, tương lai ${f(cT.load, 0)}%` : `mang tải ${f(cT.load, 0)}%`) : '';
+    const cabName = c => c ? `${c.n > 1 ? c.n + ' × ' : ''}Cu/XLPE/PVC 3×${c.S} mm² ${d.cab}` : '—';
+    const kvaStep = cT ? cT.Izc * SQ3 * U : 0;
     const Uc = d.gnd ? d.Um / SQ3 : d.Um;
     const checks = [];
     checks.push(chk(OK, `Tủ: U<sub>r</sub> ${f(d.Um)} kV, I<sub>r</sub> ${Ir} A, I<sub>k</sub> ${f(Ikr)} kA/${v.tk} s ≥ ${f(v.Ik)} kA lưới.`));
     if (prot === 'fuse' && ST > 1250) checks.push(chk(WARN, `MBA ${ST} kVA dùng cầu chì: kiểm tra bảng chọn của hãng. Từ 1600 kVA nên dùng máy cắt + rơ le.`));
     if (prot === 'cb') checks.push(chk(I50 < 0.8 * v.Ik * 1000 ? OK : BAD, I50 < 0.8 * v.Ik * 1000 ? `I>> = ${f(I50, 0)} A nằm giữa dòng sự cố hạ áp quy đổi (${f(IkLVref, 0)} A) và dòng ngắn mạch trung áp (${f(v.Ik * 1000, 0)} A).` : `I>> = ${f(I50, 0)} A không nhỏ hơn dòng ngắn mạch trung áp – rơ le 50 không tác động, xem lại.`));
-    if (!cT) checks.push(chk(BAD, 'Không tìm được cáp trung thế phù hợp trong bảng tra.'));
-    else if (SminSC > 150) checks.push(chk(WARN, `Tiết diện do ngắn mạch lớn (${f(SminSC, 0)} mm²). Kiểm tra lại thời gian loại trừ sự cố thực tế.`));
+    if (!cT) checks.push(chk(BAD, 'Không tìm được cáp trung thế phù hợp trong bảng tra – tăng số sợi song song hoặc đổi cách lắp đặt.'));
+    else {
+      checks.push(chk(OK, `Cáp đến MBA ${cT.n > 1 ? cT.n + ' × ' : ''}3×${cT.S}: chịu được ${f(cT.Izc, 0)} A (đã hiệu chỉnh) ≥ ${f(InF, 1)} A${fut ? ` (MBA tương lai ${f(STf, 0)} kVA)` : ''}, ${loadTxt}.`));
+      if (fut) checks.push(chk(INFO, `Khi nâng MBA lên ${f(STf, 0)} kVA: cáp và tủ đã đủ, nhưng phải chọn lại ${prot === 'fuse' ? (STf <= 1250 ? `cầu chì (≈ ${f(nextStd(FUSE, 1.6 * InF) || 0)} A)` : `phương án bảo vệ: chuyển từ cầu chì sang máy cắt VCB + rơ le 50/51, CT ≈ ${nextStd(CT_P, 1.2 * InF)}/1 A`) : `CT (≈ ${nextStd(CT_P, 1.2 * InF)}/1 A) và chỉnh định lại rơ le 50/51`}.`));
+      if (cT.reason.startsWith('ngắn mạch')) checks.push(chk(INFO, `Tiết diện 3×${cT.S} do ngắn mạch / tiết diện tối thiểu quyết định (cần ≥ ${f(Sreq, 0)} mm²); chỉ xét dòng tải thì 3×${cT.byLoad} là đủ. Vì vậy công suất MBA ${fut ? '(kể cả tương lai) ' : ''}thay đổi trong khoảng đến ≈ ${f(kvaStep, 0)} kVA thì cáp vẫn giữ 3×${cT.S}.`));
+      if (SminSC > 150) checks.push(chk(WARN, `Tiết diện do ngắn mạch lớn (${f(SminSC, 0)} mm²). Kiểm tra lại thời gian loại trừ sự cố thực tế.`));
+      if (cT.n > 1) checks.push(chk(WARN, `Cáp đi song song ${cT.n} sợi/lộ: cùng tiết diện, chiều dài, đầu cáp và đi cùng tuyến.`));
+    }
     const lineup = [['Ngăn lộ vào', n > 1 || prot === 'cb' ? `Dao cắt tải hoặc máy cắt ${Ir} A, dao tiếp địa, chỉ thị điện áp, chống sét van` : `Dao cắt tải ${Ir} A, dao tiếp địa, chỉ thị điện áp, chống sét van`]];
     lineup.push(['Ngăn đo đếm (theo yêu cầu điện lực)', 'TU, TI đo lường, công tơ điện tử nhiều giá']);
     for (let i = 1; i <= n; i++) lineup.push([`Ngăn bảo vệ MBA ${n > 1 ? i : ''}`.trim(), prot === 'fuse' ? `Dao cắt tải + cầu chì ${f(fuse)} A` : `Máy cắt VCB ${Ir} A, CT ${ctp}/1 A, rơ le 50/51, 50N/51N`]);
@@ -752,13 +802,21 @@ M({
       ['Dòng chịu ngắn mạch I<sub>k</sub> / t<sub>k</sub>', `${f(Ikr)} / ${v.tk}`, 'kA / s'],
       ['Dòng đỉnh chịu đựng I<sub>p</sub> = 2,5 I<sub>k</sub>', f(2.5 * Ikr, 1), 'kA'],
       ['Dòng định mức mỗi MBA phía trung áp', f(InT, 2), 'A'],
+      ...(fut ? [['Dòng mỗi MBA tương lai (' + f(STf, 0) + ' kVA)', f(InF, 2), 'A']] : []),
       ['Sự cố hạ áp quy về trung áp (I<sub>đm</sub>/u<sub>k</sub>)', f(IkLVref, 0), 'A'],
-      ['Cáp đến MBA', cT ? `Cu/XLPE/PVC 3×${cT.S} mm² ${d.cab}` : '—', ''],
-      ...(cIn ? [['Cáp lộ tổng (nếu cấp chung)', `Cu/XLPE/PVC 3×${cIn.S} mm² ${d.cab}`, '']] : []),
+      ['Cáp đến MBA', cabName(cT), ''],
+      ...(cIn ? [['Cáp lộ tổng (nếu cấp chung)', cabName(cIn), cIn ? `chịu ${f(cIn.Izc, 0)} A, mang tải ${f(cIn.load, 0)}%` : '']] : []),
       ['Tiết diện tối thiểu theo ngắn mạch', f(SminSC, 1), 'mm²'],
+      ['Hệ số hiệu chỉnh cáp K = K<sub>t</sub> × K<sub>ρ</sub> × K<sub>nhóm</sub>', `${f(Kt, 3)} × ${f(Kr, 2)} × ${f(Kg, 2)} = ${f(K, 3)}`, ''],
+      ['Công suất MBA tối đa cáp hiện tại tải được', f(kvaStep, 0), 'kVA'],
       ['Chống sét van: U<sub>c</sub> (MCOV) ≥', f(Uc, 1), `kV${d.gnd ? ' (trung tính nối đất trực tiếp)' : ' (trung tính cách ly)'}`]
     ];
     const tables = [{ title: 'Cấu hình tủ gợi ý', head: ['Ngăn', 'Thiết bị chính'], body: lineup }];
+    if (cT) tables.push({
+      title: `So sánh tiết diện cáp đến MBA (${cT.n > 1 ? cT.n + ' sợi/lộ, ' : ''}${air ? 'trong không khí' : 'chôn đất'})`,
+      head: ['Cáp', 'I<sub>z</sub> tra bảng 1 sợi (A)', 'I<sub>z</sub> hiệu chỉnh (A)', fut ? 'Mang tải hiện tại / tương lai' : 'Mang tải', 'Ngắn mạch', 'Kết luận'],
+      body: cT.cmp.map(c => ({ cls: c.sel ? 'hl' : '', cells: [`${cT.n > 1 ? cT.n + '×' : ''}3×${c.S}`, f(c.Iz, 0), f(c.Izc, 0), fut ? `${f(InT / c.Izc * 100, 0)}% / ${f(InF / c.Izc * 100, 0)}%` : `${f(InT / c.Izc * 100, 0)}%`, c.okS ? 'Đạt' : 'Không', c.okI && c.okS ? (c.sel ? 'Chọn' : 'Đạt') : 'Không đạt'] }))
+    });
     if (prot === 'cb') tables.push({
       title: 'Gợi ý chỉnh định rơ le (ban đầu)', head: ['Chức năng', 'Giá trị sơ cấp', 'Ghi chú'],
       body: [
@@ -773,18 +831,21 @@ M({
       main: [
         { l: 'Tủ trung thế', v: `${f(d.Um)} kV`, sub: `${Ir} A, ${f(Ikr)} kA/${v.tk} s`, s: 'hl' },
         { l: 'Bảo vệ MBA', v: prot === 'fuse' ? `${f(fuse)} A` : `${ctp}/1 A`, sub: prot === 'fuse' ? 'Cầu chì HRC + dao cắt tải' : 'Máy cắt VCB, CT và rơ le 50/51' },
-        { l: 'Cáp đến MBA', v: cT ? `3×${cT.S}` : '—', u: 'mm²', sub: `Cu/XLPE ${d.cab}` },
-        { l: 'Dòng mỗi MBA', v: f(InT, 1), u: 'A', sub: `${n} × ${ST} kVA, tổng ${f(Itot, 1)} A` }
+        { l: 'Cáp đến MBA', v: cT ? `${cT.n > 1 ? cT.n + '×' : ''}3×${cT.S}` : '—', u: 'mm²', sub: cT ? `Chịu ${f(cT.Izc, 0)} A, ${loadTxt}; quyết định bởi ${cT.reason}` : `Cu/XLPE ${d.cab}`, s: cT ? '' : 'bad' },
+        { l: 'Dòng mỗi MBA', v: f(InT, 1), u: 'A', sub: fut ? `${n} × ${ST} kVA; tương lai ${f(STf, 0)} kVA: ${f(InF, 1)} A` : `${n} × ${ST} kVA, tổng ${f(Itot, 1)} A` }
       ],
       checks, rows, tables,
       steps: [
         `I<sub>đm MBA</sub> = S / (√3 × U) = ${ST} / (1,732 × ${U}) = ${f(InT, 2)} A`,
-        `Thanh cái: I<sub>r</sub> ≥ 1,25 × Σ I<sub>đm</sub> = ${f(1.25 * Itot, 1)} A → ${Ir} A (tối thiểu 630 A)`,
+        ...(fut ? [`Tương lai: I<sub>đm</sub> = ${f(STf, 0)} / (1,732 × ${U}) = ${f(InF, 2)} A – dùng để chọn cáp và thanh cái tủ`] : []),
+        `Thanh cái: I<sub>r</sub> ≥ 1,25 × Σ I<sub>đm</sub> = ${f(1.25 * ItotF, 1)} A → ${Ir} A (tối thiểu 630 A)`,
         `I<sub>k tủ</sub> ≥ I<sub>k lưới</sub> = ${f(v.Ik)} kA → ${f(Ikr)} kA/${v.tk} s; I<sub>p</sub> = 2,5 × ${f(Ikr)} = ${f(2.5 * Ikr, 1)} kA`,
         prot === 'fuse' ? `Cầu chì ≈ 1,6 × I<sub>đm</sub> = ${f(1.6 * InT, 1)} A → ${f(fuse)} A (chịu được dòng xung kích 12 × I<sub>đm</sub>/0,1 s)` : `I>> = 1,3 × I<sub>đm</sub>/u<sub>k</sub> = 1,3 × ${f(InT, 2)} / ${f(uk / 100, 3)} = ${f(I50, 0)} A`,
-        `Cáp: S ≥ I<sub>k</sub> × √t / 143 = ${f(v.Ik * 1000, 0)} × √${f(v.tcl)} / 143 = ${f(SminSC, 1)} mm²; lấy max với ${f(v.Smin)} mm² tối thiểu`
+        `Cáp – ngắn mạch: S ≥ I<sub>k</sub> × √t / 143 = ${f(v.Ik * 1000, 0)} × √${f(v.tcl)} / 143 = ${f(SminSC, 1)} mm²; lấy max với ${f(v.Smin)} mm² tối thiểu → ${f(Sreq, 1)} mm²`,
+        air ? `Cáp – hiệu chỉnh: K<sub>t</sub> = √((90 − ${f(v.tair)}) / (90 − 30)) = ${f(Kt, 3)}; K<sub>nhóm</sub> = ${f(Kg, 2)} (${nc} mạch) → K = ${f(K, 3)}` : `Cáp – hiệu chỉnh: K<sub>t</sub> = √((90 − ${f(v.tsoil)}) / (90 − 20)) = ${f(Kt, 3)}; K<sub>ρ</sub> = ${f(Kr, 2)}; K<sub>nhóm</sub> = ${f(Kg, 2)} (${nc} mạch) → K = ${f(K, 3)}`,
+        cT ? `Cáp – dòng tải: I<sub>z</sub> × K × n ≥ I<sub>đm</sub> → ${f(cT.Iz, 0)} × ${f(K, 3)} × ${cT.n} = ${f(cT.Izc, 0)} A ≥ ${f(InF, 1)} A${fut ? ' (tương lai)' : ''} → chọn 3×${cT.S} mm²` : 'Cáp – không tìm được tiết diện phù hợp'
       ],
-      notes: ['Chỉnh định rơ le chỉ là giá trị khởi đầu – cần nghiên cứu phối hợp bảo vệ và thỏa thuận với điện lực.', 'Dòng cho phép cáp trung thế là giá trị tham khảo (IEC 60502-2), cầu chì chọn cuối cùng theo bảng của hãng (Fusarc, SIBA, ABB...).']
+      notes: ['Chỉnh định rơ le chỉ là giá trị khởi đầu – cần nghiên cứu phối hợp bảo vệ và thỏa thuận với điện lực.', 'Dòng cho phép cáp trung thế 3 lõi và hệ số hiệu chỉnh là giá trị tham khảo theo IEC 60502-2 (đất 20 °C, 1,5 K·m/W, sâu 0,8 m; không khí 30 °C). Đối chiếu catalogue hãng cáp (Cadivi, LS, Taihan…). Cầu chì chọn cuối cùng theo bảng của hãng (Fusarc, SIBA, ABB…).']
     };
   }
 });
