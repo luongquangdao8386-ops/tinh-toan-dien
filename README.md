@@ -58,6 +58,31 @@ Logo là tia sét gồm ba dải song song màu **đỏ – vàng – xanh**, t�
 
 Mã màu: đỏ `#E5382F`, vàng `#F6C21C`, xanh `#2F80ED`, nền logo `#1E2626`, thanh menu `#27302F`, màu nút chính (đồng) `#A45E27`.
 
+## Hệ số an toàn đang dùng
+
+Mỗi hệ số chỉ tính một lần. Nếu số liệu nhập vào đã có dự phòng thì đặt hệ số tương ứng về 1,0 (hoặc 0%).
+
+| Module | Hệ số an toàn / dự phòng | Mặc định |
+|---|---|---|
+| Phụ tải & MBA | Dự phòng phát triển; hệ số mang tải MBA | 20%; 80% |
+| Tủ & cáp trung thế | Công suất MBA tương lai; hệ số an toàn dòng tải cáp; thanh cái tủ ≥ 1,25 × I | 0 (không tính); 1,25 |
+| Ngắn mạch | c = 1,05 (dòng lớn nhất); dòng góp của động cơ đang chạy | 600 kW |
+| Thanh cái | Hệ số an toàn dòng tải | 1,1 |
+| Cáp & CB hạ thế | Hệ số an toàn dòng tải (chọn CB và cáp theo k × Ib) | 1,25 |
+| Động cơ | Hệ số an toàn dòng tải cho cáp (rơ le nhiệt vẫn chỉnh theo Iđm) | 1,25 |
+| Bù cosφ | Dự phòng dung lượng bù; CB ≥ 1,36 × I, cáp ≥ 1,5 × I (IEC 60831) | 10% |
+| Máy phát | Hệ số mang tải tối đa | 80% |
+| Tiếp địa | Hệ số mùa cho cọc / thanh | 1,4 / 1,6 |
+| Chiếu sáng | Hệ số duy trì | 0,7 |
+| Máng cáp | Dự phòng mở rộng | 20% |
+| Tải lạnh | Hệ số an toàn | 10% |
+| Chiller | Hệ số an toàn; dự phòng N+1; động cơ bơm theo API 610 (≤ 22 kW +25%, 22–55 kW +15%, > 55 kW +10%) | 10% |
+| Thông gió | Dự phòng lưu lượng quạt | 15% |
+| Độ ẩm kho giấy | Hệ số an toàn lượng ẩm | 20% |
+| Khí nén | Rò rỉ; dự phòng phát triển; hệ số đồng thời; N+1; máy sấy 1,2 × FAD | 10%; 20% |
+| Ống khí nén | Dự phòng mở rộng | 20% |
+| Bơm | Dự phòng lưu lượng; dự phòng cột áp; động cơ theo API 610 | 10%; 10% |
+
 ## Chỉnh sửa bảng tra
 
 Mở `index.html` bằng Notepad++ hoặc VS Code, tìm các mục sau (Ctrl+F):

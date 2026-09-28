@@ -366,7 +366,13 @@ const MEFF = [82.5, 84.1, 85.3, 86.7, 87.7, 88.6, 89.6, 90.4, 91.4, 92.1, 92.6, 
 const MCOS = [0.72, 0.75, 0.78, 0.80, 0.81, 0.82, 0.83, 0.84, 0.84, 0.85, 0.85, 0.85, 0.86, 0.86, 0.86, 0.87, 0.87, 0.87, 0.87, 0.88, 0.88, 0.88, 0.88, 0.88, 0.88, 0.88];
 
 function peFor(S) { if (S <= 16) return S; if (S <= 35) return 16; return nextStd(SIZES, S / 2); }
-function ukDefault(S, type) { if (type === 'dry') return S <= 500 ? 4 : 6; if (S <= 630) return 4; if (S <= 1250) return 5; return 6; }
+// uk tối thiểu theo IEC 60076-5 bảng 1 (MBA dầu); MBA khô thường 4% (≤ 500 kVA) và 6% (đến 2500 kVA)
+function ukDefault(S, type) {
+  if (S > 6300) return 8;
+  if (S > 2500) return 7;
+  if (type === 'dry') return S <= 500 ? 4 : 6;
+  if (S <= 630) return 4; if (S <= 1250) return 5; return 6;
+}
 function pkEst(S) { return S * 2.4 * Math.pow(S, -0.13) / 100; }            // kW – ước lượng tổn hao ngắn mạch
 function p0Est(S, type) { return S * 0.55 * Math.pow(S, -0.22) / 100 * (type === 'dry' ? 1.4 : 1); } // kW – ước lượng tổn hao không tải
 function peakFactor(kA) { if (kA <= 5) return 1.5; if (kA <= 10) return 1.7; if (kA <= 20) return 2.0; if (kA <= 50) return 2.1; return 2.2; } // IEC 61439-1 bảng 7
@@ -399,11 +405,15 @@ function sizeCable(p) {
   else if (h3 > 33 && h3 <= 45) { IN = 3 * h3 / 100 * Ib; kh = 0.86; Ibd = IN / kh; hNote = `Hài bậc 3 = ${f(h3, 0)}% → dòng trung tính I<sub>N</sub> = ${f(IN, 1)} A, chọn theo dòng trung tính, hệ số 0,86.`; }
   else if (h3 > 45) { IN = 3 * h3 / 100 * Ib; Ibd = IN; hNote = `Hài bậc 3 = ${f(h3, 0)}% → dòng trung tính I<sub>N</sub> = ${f(IN, 1)} A lớn hơn dòng pha, chọn theo dòng trung tính.`; }
 
+  // Hệ số an toàn dòng tải: dòng thiết kế dùng chọn CB và cáp; sụt áp vẫn tính theo dòng thực
+  const kf = p.kf > 0 ? clamp(p.kf, 1, 3) : 1;
+  const Ides = Ib * kf;
+  Ibd = Ibd * kf;
   // Dòng bảo vệ
   let Ir, frame, adj = false;
   if (p.cbMode === 'man' && p.In > 0) { Ir = p.In; frame = nextStd(FRAMES, Ir) || Ir; adj = frame !== Ir && Ir > 63; if (Ir <= 63) frame = Ir; }
-  else if (p.cbMode === 'adj' && Ib > 60) { Ir = Math.ceil(Ib / 5) * 5; frame = nextStd(FRAMES, Ir); adj = true; }
-  else { Ir = nextStd(CB_IN, Ib); frame = Ir; }
+  else if (p.cbMode === 'adj' && Ides > 60) { Ir = Math.ceil(Ides / 5) * 5; frame = nextStd(FRAMES, Ir); adj = true; }
+  else { Ir = nextStd(CB_IN, Ides); frame = Ir; }
   if (!Ir || !frame) return { error: 'Dòng làm việc vượt 6300 A – hãy chia thành nhiều lộ hoặc dùng busway.' };
   const ImA = p.ImA > 0 ? p.ImA : (p.im > 0 ? p.im * Ir : 0);
 
@@ -474,7 +484,7 @@ function sizeCable(p) {
     const okI = di.Izc >= Ireq * kh - 1e-9, okU = di.pct <= p.duMax, okS = SIZES[i] * n >= Smin;
     cmp.push({ S: SIZES[i], Izc: di.Izc, pct: di.pct, okI, okU, okS, sel: i === idx });
   }
-  return { ph, U, U0, cos, sin, eff, Ib, Ibd, IN, kh, h3, hNote, Ir, frame, adj, ImA, K1, K2, K3, K, ng, n, idx, S, Iz, Izc, du: d, duMax: p.duMax, Smin, scBasis, i2t: p.i2t, ksc, Spe, Ik1, Lmax, IkEnd, reason, ins, method: p.method, thmax, thref, ta, grp: p.grp, L: p.L, Ik: p.Ik, tk: p.tk, mode: p.mode, P: p.P, cmp, Ireq };
+  return { ph, U, U0, cos, sin, eff, Ib, Ibd, kf, Ides, IN, kh, h3, hNote, Ir, frame, adj, ImA, K1, K2, K3, K, ng, n, idx, S, Iz, Izc, du: d, duMax: p.duMax, Smin, scBasis, i2t: p.i2t, ksc, Spe, Ik1, Lmax, IkEnd, reason, ins, method: p.method, thmax, thref, ta, grp: p.grp, L: p.L, Ik: p.Ik, tk: p.tk, mode: p.mode, P: p.P, cmp, Ireq };
 }
 
 function cableDesignation(r) {
@@ -492,10 +502,11 @@ function cableReport(r) {
     { l: 'Tiết diện ruột pha', v: r.n > 1 ? `${r.n} × ${f(r.S)}` : f(r.S), u: 'mm²', sub: `Quyết định bởi ${r.reason}`, s: 'hl' },
     { l: 'Thiết bị bảo vệ', v: `${r.frame} A`, sub: r.adj ? `${cbType(r.frame)}, chỉnh I<sub>r</sub> = ${f(r.Ir)} A${icu ? `, I<sub>cu</sub> ≥ ${icu} kA` : ''}` : `${cbType(r.frame)}${icu ? `, I<sub>cu</sub> ≥ ${icu} kA` : ''}` },
     { l: 'Sụt áp', v: f(r.du.pct, 2), u: '%', sub: `${f(r.du.dU, 1)} V, cho phép ${f(r.duMax, 1)}%`, s: r.du.pct <= r.duMax ? '' : 'bad' },
-    { l: 'Dòng làm việc I<sub>b</sub>', v: f(r.Ib, 1), u: 'A', sub: `Khả năng tải sau hiệu chỉnh ${f(r.Izc, 0)} A` }
+    { l: 'Dòng làm việc I<sub>b</sub>', v: f(r.Ib, 1), u: 'A', sub: r.kf > 1 ? `Thiết kế ${f(r.Ides, 0)} A (× ${f(r.kf, 2)}); cáp chịu ${f(r.Izc, 0)} A` : `Khả năng tải sau hiệu chỉnh ${f(r.Izc, 0)} A` }
   ];
   const checks = [];
-  checks.push(chk(r.Ib <= r.Ir + 1e-9 && r.Ir <= r.Izc + 1e-9 ? OK : BAD, `Điều kiện I<sub>b</sub> ≤ I<sub>r</sub> ≤ I<sub>z</sub>: ${f(r.Ib, 1)} ≤ ${f(r.Ir, 0)} ≤ ${f(r.Izc, 0)} A`));
+  const c1 = r.Ides <= r.Ir + 1e-9 ? '≤' : '&gt;', c2 = r.Ir <= r.Izc + 1e-9 ? '≤' : '&gt;';
+  checks.push(chk(c1 === '≤' && c2 === '≤' ? OK : BAD, (r.kf > 1 ? `Điều kiện k × I<sub>b</sub> ≤ I<sub>r</sub> ≤ I<sub>z</sub>: ${f(r.kf, 2)} × ${f(r.Ib, 1)} = ${f(r.Ides, 1)} ${c1} ${f(r.Ir, 0)} ${c2} ${f(r.Izc, 0)} A` : `Điều kiện I<sub>b</sub> ≤ I<sub>r</sub> ≤ I<sub>z</sub>: ${f(r.Ib, 1)} ${c1} ${f(r.Ir, 0)} ${c2} ${f(r.Izc, 0)} A`) + (c1 !== '≤' ? ' → dòng chỉnh định CB nhỏ hơn dòng thiết kế, tăng I<sub>r</sub>.' : '')));
   checks.push(chk(r.du.pct <= r.duMax ? OK : BAD, `Sụt áp ${f(r.du.pct, 2)}% ${r.du.pct <= r.duMax ? '≤' : '>'} ${f(r.duMax, 1)}% cho phép`));
   const k2S2 = Math.pow(r.ksc * r.S * r.n, 2);
   if (r.scBasis === 'time') checks.push(chk(r.S * r.n >= r.Smin ? OK : BAD, `Chịu ngắn mạch: cần ≥ ${f(r.Smin, 1)} mm², có ${r.n > 1 ? `${r.n}×` : ''}${f(r.S)} mm² (I<sub>k</sub> ${f(r.Ik, 1)} kA, t ${f(r.tk, 2)} s)`));
@@ -538,7 +549,8 @@ function cableReport(r) {
     ? `I<sub>b</sub> = P / (√3 × U × cosφ × η) = ${f(r.P * 1000, 0)} / (1,732 × ${f(r.U)} × ${f(r.cos, 2)} × ${f(r.eff, 3)}) = <b>${f(r.Ib, 1)} A</b>`
     : `I<sub>b</sub> = P / (U × cosφ × η) = ${f(r.P * 1000, 0)} / (${f(r.U)} × ${f(r.cos, 2)} × ${f(r.eff, 3)}) = <b>${f(r.Ib, 1)} A</b>`);
   else steps.push(`Dòng làm việc nhập trực tiếp I<sub>b</sub> = <b>${f(r.Ib, 1)} A</b>`);
-  steps.push(r.adj ? `Chọn CB khung ${r.frame} A, chỉnh định I<sub>r</sub> = ${f(r.Ir)} A ≥ I<sub>b</sub>` : `Chọn CB I<sub>n</sub> = ${f(r.Ir)} A ≥ I<sub>b</sub> (dãy dòng định mức tiêu chuẩn)`);
+  if (r.kf > 1) steps.push(`Dòng thiết kế I<sub>tk</sub> = hệ số an toàn × I<sub>b</sub> = ${f(r.kf, 2)} × ${f(r.Ib, 1)} = <b>${f(r.Ides, 1)} A</b> (sụt áp vẫn tính theo I<sub>b</sub> thực)`);
+  steps.push(r.adj ? `Chọn CB khung ${r.frame} A, chỉnh định I<sub>r</sub> = ${f(r.Ir)} A ≥ ${r.kf > 1 ? 'I<sub>tk</sub>' : 'I<sub>b</sub>'}` : `Chọn CB I<sub>n</sub> = ${f(r.Ir)} A ≥ ${r.kf > 1 ? 'I<sub>tk</sub>' : 'I<sub>b</sub>'} (dãy dòng định mức tiêu chuẩn)`);
   steps.push(`K<sub>1</sub> = √((θ<sub>max</sub> − θ<sub>a</sub>) / (θ<sub>max</sub> − θ<sub>chuẩn</sub>)) = √((${r.thmax} − ${f(r.ta)}) / (${r.thmax} − ${r.thref})) = ${f(r.K1, 3)}; K<sub>2</sub> = ${f(r.K2, 2)}; K<sub>3</sub> = ${f(r.K3, 2)} → K = ${f(r.K, 3)}`);
   if (r.hNote) steps.push(r.hNote);
   steps.push(`I<sub>z</sub> yêu cầu mỗi sợi = ${r.kh < 1 ? `max(I<sub>b</sub>′, I<sub>r</sub>/${f(r.kh, 2)})` : 'I<sub>r</sub>'} / (K × n) = ${f(r.Ireq, 1)} / (${f(r.K, 3)} × ${r.n}) = ${f(r.Ireq / (r.K * r.n), 1)} A → tra bảng phương pháp ${r.method}: S = ${f(r.S)} mm² (I<sub>z</sub> = ${f(r.Iz)} A)`);
@@ -744,6 +756,7 @@ M({
     { id: 'tair', type: 'num', label: 'Nhiệt độ không khí', unit: '°C', def: 40, show: v => v.inst === 'air', help: 'Bảng tra lấy ở 30 °C. Hầm cáp, gần lò hơi, máy sấy có thể 40–45 °C.' },
     { id: 'ncir', type: 'num', label: 'Số mạch cáp đi chung một tuyến', def: 1, help: 'Tính cả cáp trung thế khác đi cùng rãnh hoặc thang cáp.' },
     { id: 'gap', type: 'sel', label: 'Khoảng cách giữa các cáp', opts: [['touch', 'Đặt sát nhau'], ['s20', 'Cách nhau 0,2 m']], def: 'touch', show: v => v.inst !== 'air' && +v.ncir > 1 },
+    { id: 'kf', type: 'num', label: 'Hệ số an toàn dòng tải cho cáp', def: 1.25, help: 'Dòng thiết kế = hệ số × dòng định mức MBA. 1,0 = đúng dòng định mức; 1,2–1,25 = cho phép MBA quá tải ngắn hạn 20–25%, cáp mang tải lâu dài ≤ 80%. Đã tính ở đây thì không cộng thêm bên ngoài.' },
     { id: 'npar', type: 'sel', label: 'Số sợi song song mỗi lộ', opts: [['auto', 'Tự động (tối đa 300 mm²/sợi)'], ['1', '1'], ['2', '2'], ['3', '3']], def: 'auto' },
     { id: 'tcl', type: 'num', label: 'Thời gian loại trừ sự cố (kiểm tra cáp)', unit: 's', def: 0.5, help: 'Máy cắt: 0,2–0,5 s gồm cả dự phòng. Cáp sau cầu chì hạn dòng có thể lấy nhỏ hơn.' },
     { id: 'Smin', type: 'num', label: 'Tiết diện tối thiểu theo quy định', unit: 'mm²', def: 50 }
@@ -772,12 +785,14 @@ M({
     const Kr = air ? 1 : (MV_RHO[v.rho] || 1);
     const Kg = air ? MV_GRP_AIR[nc - 1] : (MV_GRP_GND[v.gap] || MV_GRP_GND.touch)[nc - 1];
     const K = Kt * Kr * Kg;
-    const cT = mvSize(InF, Sreq, air, K, v.npar), cIn = n > 1 ? mvSize(ItotF, Sreq, air, K, v.npar) : null;
+    const kf = v.kf > 0 ? clamp(v.kf, 1, 2) : 1;
+    const Ides = InF * kf;
+    const cT = mvSize(Ides, Sreq, air, K, v.npar), cIn = n > 1 ? mvSize(ItotF * kf, Sreq, air, K, v.npar) : null;
     if (cT && fut && cT.reason === 'dòng tải') cT.reason = 'dòng tải tương lai';
-    const loadNow = cT ? InT / cT.Izc * 100 : 0;
-    const loadTxt = cT ? (fut ? `mang tải hiện tại ${f(loadNow, 0)}%, tương lai ${f(cT.load, 0)}%` : `mang tải ${f(cT.load, 0)}%`) : '';
+    const loadNow = cT ? InT / cT.Izc * 100 : 0, loadFut = cT ? InF / cT.Izc * 100 : 0;
+    const loadTxt = cT ? (fut ? `mang tải hiện tại ${f(loadNow, 0)}%, tương lai ${f(loadFut, 0)}%` : `mang tải ${f(loadNow, 0)}%`) : '';
     const cabName = c => c ? `${c.n > 1 ? c.n + ' × ' : ''}Cu/XLPE/PVC 3×${c.S} mm² ${d.cab}` : '—';
-    const kvaStep = cT ? cT.Izc * SQ3 * U : 0;
+    const kvaStep = cT ? cT.Izc / kf * SQ3 * U : 0;
     const Uc = d.gnd ? d.Um / SQ3 : d.Um;
     const checks = [];
     checks.push(chk(OK, `Tủ: U<sub>r</sub> ${f(d.Um)} kV, I<sub>r</sub> ${Ir} A, I<sub>k</sub> ${f(Ikr)} kA/${v.tk} s ≥ ${f(v.Ik)} kA lưới.`));
@@ -785,7 +800,7 @@ M({
     if (prot === 'cb') checks.push(chk(I50 < 0.8 * v.Ik * 1000 ? OK : BAD, I50 < 0.8 * v.Ik * 1000 ? `I>> = ${f(I50, 0)} A nằm giữa dòng sự cố hạ áp quy đổi (${f(IkLVref, 0)} A) và dòng ngắn mạch trung áp (${f(v.Ik * 1000, 0)} A).` : `I>> = ${f(I50, 0)} A không nhỏ hơn dòng ngắn mạch trung áp – rơ le 50 không tác động, xem lại.`));
     if (!cT) checks.push(chk(BAD, 'Không tìm được cáp trung thế phù hợp trong bảng tra – tăng số sợi song song hoặc đổi cách lắp đặt.'));
     else {
-      checks.push(chk(OK, `Cáp đến MBA ${cT.n > 1 ? cT.n + ' × ' : ''}3×${cT.S}: chịu được ${f(cT.Izc, 0)} A (đã hiệu chỉnh) ≥ ${f(InF, 1)} A${fut ? ` (MBA tương lai ${f(STf, 0)} kVA)` : ''}, ${loadTxt}.`));
+      checks.push(chk(OK, `Cáp đến MBA ${cT.n > 1 ? cT.n + ' × ' : ''}3×${cT.S}: chịu được ${f(cT.Izc, 0)} A (đã hiệu chỉnh) ≥ dòng thiết kế ${f(Ides, 1)} A = ${f(kf, 2)} × ${f(InF, 1)} A${fut ? ` (MBA tương lai ${f(STf, 0)} kVA)` : ''}; ${loadTxt}.`));
       if (fut) checks.push(chk(INFO, `Khi nâng MBA lên ${f(STf, 0)} kVA: cáp và tủ đã đủ, nhưng phải chọn lại ${prot === 'fuse' ? (STf <= 1250 ? `cầu chì (≈ ${f(nextStd(FUSE, 1.6 * InF) || 0)} A)` : `phương án bảo vệ: chuyển từ cầu chì sang máy cắt VCB + rơ le 50/51, CT ≈ ${nextStd(CT_P, 1.2 * InF)}/1 A`) : `CT (≈ ${nextStd(CT_P, 1.2 * InF)}/1 A) và chỉnh định lại rơ le 50/51`}.`));
       if (cT.reason.startsWith('ngắn mạch')) checks.push(chk(INFO, `Tiết diện 3×${cT.S} do ngắn mạch / tiết diện tối thiểu quyết định (cần ≥ ${f(Sreq, 0)} mm²); chỉ xét dòng tải thì 3×${cT.byLoad} là đủ. Vì vậy công suất MBA ${fut ? '(kể cả tương lai) ' : ''}thay đổi trong khoảng đến ≈ ${f(kvaStep, 0)} kVA thì cáp vẫn giữ 3×${cT.S}.`));
       if (SminSC > 150) checks.push(chk(WARN, `Tiết diện do ngắn mạch lớn (${f(SminSC, 0)} mm²). Kiểm tra lại thời gian loại trừ sự cố thực tế.`));
@@ -806,9 +821,10 @@ M({
       ['Sự cố hạ áp quy về trung áp (I<sub>đm</sub>/u<sub>k</sub>)', f(IkLVref, 0), 'A'],
       ['Cáp đến MBA', cabName(cT), ''],
       ...(cIn ? [['Cáp lộ tổng (nếu cấp chung)', cabName(cIn), cIn ? `chịu ${f(cIn.Izc, 0)} A, mang tải ${f(cIn.load, 0)}%` : '']] : []),
+      ['Dòng thiết kế cáp = hệ số an toàn × I<sub>đm</sub>', `${f(kf, 2)} × ${f(InF, 1)} = ${f(Ides, 1)}`, 'A'],
       ['Tiết diện tối thiểu theo ngắn mạch', f(SminSC, 1), 'mm²'],
       ['Hệ số hiệu chỉnh cáp K = K<sub>t</sub> × K<sub>ρ</sub> × K<sub>nhóm</sub>', `${f(Kt, 3)} × ${f(Kr, 2)} × ${f(Kg, 2)} = ${f(K, 3)}`, ''],
-      ['Công suất MBA tối đa cáp hiện tại tải được', f(kvaStep, 0), 'kVA'],
+      ['Công suất MBA tối đa cáp đã chọn tải được (có hệ số an toàn)', f(kvaStep, 0), 'kVA'],
       ['Chống sét van: U<sub>c</sub> (MCOV) ≥', f(Uc, 1), `kV${d.gnd ? ' (trung tính nối đất trực tiếp)' : ' (trung tính cách ly)'}`]
     ];
     const tables = [{ title: 'Cấu hình tủ gợi ý', head: ['Ngăn', 'Thiết bị chính'], body: lineup }];
@@ -843,7 +859,8 @@ M({
         prot === 'fuse' ? `Cầu chì ≈ 1,6 × I<sub>đm</sub> = ${f(1.6 * InT, 1)} A → ${f(fuse)} A (chịu được dòng xung kích 12 × I<sub>đm</sub>/0,1 s)` : `I>> = 1,3 × I<sub>đm</sub>/u<sub>k</sub> = 1,3 × ${f(InT, 2)} / ${f(uk / 100, 3)} = ${f(I50, 0)} A`,
         `Cáp – ngắn mạch: S ≥ I<sub>k</sub> × √t / 143 = ${f(v.Ik * 1000, 0)} × √${f(v.tcl)} / 143 = ${f(SminSC, 1)} mm²; lấy max với ${f(v.Smin)} mm² tối thiểu → ${f(Sreq, 1)} mm²`,
         air ? `Cáp – hiệu chỉnh: K<sub>t</sub> = √((90 − ${f(v.tair)}) / (90 − 30)) = ${f(Kt, 3)}; K<sub>nhóm</sub> = ${f(Kg, 2)} (${nc} mạch) → K = ${f(K, 3)}` : `Cáp – hiệu chỉnh: K<sub>t</sub> = √((90 − ${f(v.tsoil)}) / (90 − 20)) = ${f(Kt, 3)}; K<sub>ρ</sub> = ${f(Kr, 2)}; K<sub>nhóm</sub> = ${f(Kg, 2)} (${nc} mạch) → K = ${f(K, 3)}`,
-        cT ? `Cáp – dòng tải: I<sub>z</sub> × K × n ≥ I<sub>đm</sub> → ${f(cT.Iz, 0)} × ${f(K, 3)} × ${cT.n} = ${f(cT.Izc, 0)} A ≥ ${f(InF, 1)} A${fut ? ' (tương lai)' : ''} → chọn 3×${cT.S} mm²` : 'Cáp – không tìm được tiết diện phù hợp'
+        `Cáp – dòng thiết kế: I<sub>tk</sub> = ${f(kf, 2)} × ${f(InF, 1)} = ${f(Ides, 1)} A`,
+        cT ? `Cáp – dòng tải: I<sub>z</sub> × K × n ≥ I<sub>tk</sub> → ${f(cT.Iz, 0)} × ${f(K, 3)} × ${cT.n} = ${f(cT.Izc, 0)} A ≥ ${f(Ides, 1)} A → chọn 3×${cT.S} mm²` : 'Cáp – không tìm được tiết diện phù hợp'
       ],
       notes: ['Chỉnh định rơ le chỉ là giá trị khởi đầu – cần nghiên cứu phối hợp bảo vệ và thỏa thuận với điện lực.', 'Dòng cho phép cáp trung thế 3 lõi và hệ số hiệu chỉnh là giá trị tham khảo theo IEC 60502-2 (đất 20 °C, 1,5 K·m/W, sâu 0,8 m; không khí 30 °C). Đối chiếu catalogue hãng cáp (Cadivi, LS, Taihan…). Cầu chì chọn cuối cùng theo bảng của hãng (Fusarc, SIBA, ABB…).']
     };
@@ -864,6 +881,7 @@ M({
     { id: 'uk', type: 'num', label: 'uk (0 = tự động)', unit: '%', def: 0 },
     { id: 'Pk', type: 'num', label: 'Tổn hao ngắn mạch Pk (0 = ước lượng)', unit: 'kW', def: 0 },
     { id: 'nT', type: 'sel', label: 'Số MBA vận hành song song', opts: [['1', '1'], ['2', '2'], ['3', '3']], def: '1' },
+    { id: 'Pm', type: 'num', label: 'Động cơ đang chạy nối trực tiếp vào thanh cái hạ áp', unit: 'kW', def: 600, help: 'Khi ngắn mạch, động cơ đang quay phát ngược dòng về điểm sự cố ≈ 5 × I<sub>đm</sub> (IEC 60909). Không tính động cơ chạy qua biến tần. Đặt 0 để bỏ qua.' },
     { type: 'sec', label: 'Các đoạn dẫn điện nối tiếp' },
     {
       id: 'segs', type: 'table', label: 'Đoạn dẫn tính từ MBA', help: 'Với thanh cái, nhập tổng tiết diện mỗi pha (VD 2 thanh 100×10 = 2000 mm²) và số song song = 1.',
@@ -885,6 +903,15 @@ M({
     const uk = v.uk > 0 ? v.uk : ukDefault(ST, v.type), Pk = v.Pk > 0 ? v.Pk : pkEst(ST);
     const ZT = uk / 100 * U * U / (ST * 1000), RT = Pk * 1000 * U * U / Math.pow(ST * 1000, 2), XT = Math.sqrt(Math.max(ZT * ZT - RT * RT, 0));
     let R = RQ + RT / n, X = XQ + XT / n;
+    const Rn = R, Xn = X;
+    // Dòng góp của động cơ (IEC 60909): I_LR/I_rM = 5, R_M/X_M = 0,42, ghép song song với nguồn tại thanh cái
+    const Pm = v.Pm > 0 ? v.Pm : 0;
+    const IrM = Pm * 1000 / (SQ3 * U * 0.86 * 0.94), IkM = 5 * IrM;
+    if (IkM > 0) {
+      const ZM = c * U / (SQ3 * IkM), XM = ZM / Math.sqrt(1 + 0.42 * 0.42), RM = 0.42 * XM;
+      const nr = R * RM - X * XM, ni = R * XM + X * RM, dr = R + RM, di = X + XM, dd = dr * dr + di * di;
+      R = (nr * dr + ni * di) / dd; X = (ni * dr - nr * di) / dd;
+    }
     const pts = [];
     const push = (name, R, X) => {
       const Z = Math.hypot(R, X), Ik = c * U / (SQ3 * Z) / 1000, kappa = 1.02 + 0.98 * Math.exp(-3 * R / X);
@@ -900,6 +927,7 @@ M({
     }
     const first = pts[0], last = pts[pts.length - 1];
     const IkInf = c * ST * 1000 / (SQ3 * U) / (uk / 100) / 1000 * n;
+    const IkNet = c * U / (SQ3 * Math.hypot(Rn, Xn)) / 1000;
     const checks = [];
     pts.forEach(p => { const icu = nextStd(ICU_STD, p.Ik); checks.push(chk(p.Ik > 65 ? WARN : OK, `${p.name}: I"<sub>k3</sub> ${f(p.Ik, 1)} kA → CB tại đây cần I<sub>cu</sub> ≥ ${icu || '> 150'} kA`)); });
     return {
@@ -914,7 +942,9 @@ M({
         ['Công suất ngắn mạch lưới S<sub>k</sub>', f(Ssc, 0), 'MVA'],
         ['Tổng trở lưới quy về 0,4 kV', `R ${f(RQ * 1000, 3)}; X ${f(XQ * 1000, 3)}`, 'mΩ'],
         ['u<sub>k</sub> / P<sub>k</sub> MBA', `${f(uk, 2)}% / ${f(Pk, 2)} kW`, v.Pk > 0 ? '' : '(P<sub>k</sub> ước lượng)'],
-        ['Tổng trở MBA (mỗi máy)', `R ${f(RT * 1000, 3)}; X ${f(XT * 1000, 3)}`, 'mΩ']
+        ['Tổng trở MBA (mỗi máy)', `R ${f(RT * 1000, 3)}; X ${f(XT * 1000, 3)}`, 'mΩ'],
+        ['I"<sub>k3</sub> thanh cái chỉ từ lưới + MBA', f(IkNet, 2), 'kA'],
+        ['Dòng góp của động cơ (' + f(Pm, 0) + ' kW)', f(IkM / 1000, 2), 'kA']
       ],
       tables: [{
         title: 'Dòng ngắn mạch tại các điểm',
@@ -925,9 +955,10 @@ M({
         `Z<sub>Q</sub> = c × U² / S<sub>k</sub> = 1,05 × 400² / ${f(Ssc, 0)}·10⁶ = ${f(ZQ * 1000, 3)} mΩ; X<sub>Q</sub> = 0,995 Z<sub>Q</sub>, R<sub>Q</sub> = 0,1 X<sub>Q</sub>`,
         `Z<sub>T</sub> = u<sub>k</sub> × U² / S<sub>T</sub> = ${f(uk / 100, 4)} × 400² / ${ST}·10³ = ${f(ZT * 1000, 3)} mΩ; R<sub>T</sub> = P<sub>k</sub> × U² / S<sub>T</sub>² = ${f(RT * 1000, 3)} mΩ; X<sub>T</sub> = √(Z<sub>T</sub>² − R<sub>T</sub>²)`,
         'Cáp/thanh cái: R = ρ<sub>20</sub> × L / S (ρ Cu 0,01851; Al 0,02941 Ω·mm²/m); X = 0,08 mΩ/m (cáp), 0,15 mΩ/m (thanh cái)',
+        `Động cơ: I<sub>rM</sub> = ${f(Pm, 0)} kW / (√3 × 0,4 × 0,86 × 0,94) = ${f(IrM, 0)} A; I<sub>kM</sub> = 5 × I<sub>rM</sub> = ${f(IkM / 1000, 2)} kA, ghép song song với nguồn tại thanh cái (R<sub>M</sub>/X<sub>M</sub> = 0,42)`,
         'I"<sub>k3</sub> = c × U<sub>n</sub> / (√3 × |Z|);  κ = 1,02 + 0,98·e<sup>−3R/X</sup>;  i<sub>p</sub> = κ × √2 × I"<sub>k3</sub>;  I"<sub>k2</sub> = 0,866 × I"<sub>k3</sub>'
       ],
-      notes: ['Chưa kể dòng góp của động cơ: động cơ lớn gần thanh cái có thể góp thêm khoảng 4–6 lần dòng định mức của chúng.', 'Dùng c = 1,05 và điện trở ở 20 °C để tính dòng ngắn mạch lớn nhất (chọn khả năng cắt).']
+      notes: ['Dùng c = 1,05, điện trở ở 20 °C và có dòng góp của động cơ để tính dòng ngắn mạch lớn nhất (chọn khả năng cắt I<sub>cu</sub>). Dòng ngắn mạch nhỏ nhất (kiểm tra độ nhạy bảo vệ) xem module Cáp & CB.']
     };
   }
 });
@@ -951,6 +982,7 @@ M({
     { id: 'src', type: 'sel', label: 'Xác định dòng theo', opts: [['T', 'Công suất MBA'], ['I', 'Nhập dòng điện']], def: 'T' },
     { id: 'ST', type: 'num', label: 'Công suất MBA', unit: 'kVA', def: 1600, show: v => v.src === 'T' },
     { id: 'Ib', type: 'num', label: 'Dòng làm việc', unit: 'A', def: 2000, show: v => v.src === 'I' },
+    { id: 'kf', type: 'num', label: 'Hệ số an toàn dòng tải', def: 1.1, help: 'Thanh cái tổng sau MBA: 1,0–1,1 (dòng lâu dài bị giới hạn bởi ACB tổng). Thanh cái tủ phân phối có dự phòng mở rộng: 1,2–1,25.' },
     { type: 'sec', label: 'Thanh cái' },
     { id: 'mat', type: 'sel', label: 'Vật liệu', opts: [['cu', 'Đồng'], ['al', 'Nhôm']], def: 'cu' },
     { id: 'mode', type: 'sel', label: 'Cách chọn', opts: [['auto', 'Tự động tìm phương án'], ['man', 'Kiểm tra kích thước cụ thể']], def: 'auto' },
@@ -972,8 +1004,9 @@ M({
     { id: 'sig', type: 'num', label: 'Ứng suất cho phép (0 = mặc định)', unit: 'daN/cm²', def: 0, help: 'Mặc định: đồng 1200, nhôm 700 daN/cm².' }
   ],
   calc(v) {
-    const Ib = v.src === 'T' ? v.ST * 1000 / (SQ3 * 400) : v.Ib;
-    if (!(Ib > 0)) return { error: 'Nhập công suất MBA hoặc dòng làm việc.' };
+    const Ib0 = v.src === 'T' ? v.ST * 1000 / (SQ3 * 400) : v.Ib;
+    if (!(Ib0 > 0)) return { error: 'Nhập công suất MBA hoặc dòng làm việc.' };
+    const kfb = v.kf > 0 ? clamp(v.kf, 1, 2) : 1, Ib = Ib0 * kfb;
     const mat = v.mat, k2 = v.surf === 'paint' ? 1.15 : 1, k3 = { edge: 1, flat1: 0.95, flatn: 0.75 }[v.pos] || 1, k4 = { enc: 0.8, in: 1, out: 1.2 }[v.env] || 1;
     const ta = v.ta, tb = v.tb;
     if (!(tb > ta + 5)) return { error: 'Nhiệt độ thanh cái cho phép phải lớn hơn nhiệt độ môi trường ít nhất 5 °C.' };
@@ -998,7 +1031,8 @@ M({
     if (v.mode === 'auto') {
       const cands = [];
       for (const [a, e] of BB_LIST) for (let n = 1; n <= 3; n++) cands.push(ev(a, e, n));
-      cands.sort((x, y) => x.S - y.S || x.n - y.n);
+      // Ưu tiên tiết diện nhỏ; cùng tiết diện thì ưu tiên thanh rộng ≤ 120 mm (thông dụng, dễ gia công), rồi ít thanh hơn
+      cands.sort((x, y) => x.S - y.S || (x.a > 120) - (y.a > 120) || x.n - y.n);
       opts = cands.filter(c => c.okI && c.okT && c.okD);
       pick = opts[0] || cands.find(c => c.okI && c.okT);
       if (!pick) return { error: `Không có phương án thanh cái đơn nào (tới 3×200×10 mm) đạt ${f(Ib, 0)} A. Xem xét busway hoặc chia thanh cái.` };
@@ -1009,10 +1043,10 @@ M({
     const name = `${pick.n} × ${pick.a}×${pick.e}`;
     const matN = mat === 'al' ? 'nhôm' : 'đồng';
     const checks = [
-      chk(pick.okI ? OK : BAD, `Dòng cho phép ${f(pick.Iz, 0)} A ${pick.okI ? '≥' : '&lt;'} dòng làm việc ${f(Ib, 0)} A`),
+      chk(pick.okI ? OK : BAD, `Dòng cho phép ${f(pick.Iz, 0)} A ${pick.okI ? '≥' : '&lt;'} ${kfb > 1 ? `dòng thiết kế ${f(Ib, 0)} A (${f(kfb, 2)} × ${f(Ib0, 0)} A)` : `dòng làm việc ${f(Ib, 0)} A`}`),
       chk(pick.okT ? OK : BAD, IkA > 0 ? `Ổn định nhiệt: cần ≥ ${f(Smin, 0)} mm², có ${f(Sph)} mm²; nhiệt độ cuối ngắn mạch ${f(pick.thEnd, 0)} °C` : 'Chưa nhập dòng ngắn mạch – bỏ qua kiểm tra nhiệt.'),
       chk(pick.okD ? OK : BAD, IkA > 0 ? `Ổn định động: σ = ${f(pick.sig, 0)} daN/cm² ${pick.okD ? '≤' : '>'} ${f(sallow)} daN/cm²${pick.okD ? '' : ` → giảm khoảng cách gối đỡ xuống ≤ ${f(lmax, 0)} mm hoặc tăng khoảng cách pha`}` : 'Chưa nhập dòng ngắn mạch – bỏ qua kiểm tra lực điện động.'),
-      chk(OK, `Mật độ dòng ${f(Ib / Sph, 2)} A/mm²`)
+      chk(OK, `Mật độ dòng ở dòng làm việc ${f(Ib0 / Sph, 2)} A/mm²`)
     ];
     const tables = [];
     if (v.mode === 'auto' && opts.length) tables.push({
@@ -1022,7 +1056,7 @@ M({
     return {
       main: [
         { l: 'Thanh cái pha', v: name, u: 'mm', sub: `Thanh ${matN}, ${f(Sph)} mm²/pha`, s: 'hl' },
-        { l: 'Dòng cho phép', v: f(pick.Iz, 0), u: 'A', sub: `Dòng làm việc ${f(Ib, 0)} A` },
+        { l: 'Dòng cho phép', v: f(pick.Iz, 0), u: 'A', sub: kfb > 1 ? `Dòng thiết kế ${f(Ib, 0)} A = ${f(kfb, 2)} × ${f(Ib0, 0)} A` : `Dòng làm việc ${f(Ib, 0)} A` },
         { l: 'Lực điện động', v: f(pick.F, 0), u: 'daN', sub: `trên mỗi gối đỡ, i<sub>p</sub> = ${f(ip / 1000, 1)} kA` },
         { l: 'Thanh PE tối thiểu', v: f(pe, 0), u: 'mm²', sub: 'Thanh N: 100% pha khi có biến tần, UPS' }
       ],
@@ -1067,6 +1101,7 @@ M({
     { id: 'cos', type: 'num', label: 'Hệ số công suất cosφ', def: 0.85 },
     { id: 'eff', type: 'num', label: 'Hiệu suất (động cơ)', unit: '%', def: 100, show: v => v.mode === 'P', help: 'Tủ phân phối, tải chung nhập 100.' },
     { id: 'L', type: 'num', label: 'Chiều dài tuyến', unit: 'm', def: 80 },
+    { id: 'kf', type: 'num', label: 'Hệ số an toàn dòng tải', def: 1.25, help: 'Dòng thiết kế = hệ số × I<sub>b</sub>, dùng chọn CB và cáp (sụt áp vẫn tính theo dòng thực). 1,25 = cáp mang tải ≤ 80%, dự phòng tăng tải. Nếu công suất nhập vào đã gồm dự phòng thì đặt 1,0.' },
     { type: 'sec', label: 'Cáp và lắp đặt' },
     { id: 'ins', type: 'sel', label: 'Cách điện', opts: [['XLPE', 'XLPE (CXV) – 90 °C'], ['PVC', 'PVC (CVV) – 70 °C']], def: 'XLPE' },
     { id: 'method', type: 'sel', label: 'Phương pháp lắp đặt', opts: METHODS, def: 'E' },
@@ -1087,7 +1122,7 @@ M({
     { id: 'im', type: 'num', label: 'Ngưỡng cắt từ Im (bội số của Ir)', def: 10, help: 'Đặc tính C: 10, D: 20; MCCB điện tử thường 5–10.' }
   ],
   calc(v) {
-    const r = sizeCable({ phase: v.phase, U: v.phase === '1' ? v.U1 : v.U3, mode: v.mode, P: v.P, cos: v.cos, eff: v.eff, Ib: v.Ib, L: v.L, ins: v.ins, method: v.method, ta: v.ta, grp: v.grp, ngrp: v.ngrp, k3: v.k3, npar: v.npar, duMax: v.du > 0 ? v.du : 5, cbMode: v.cbMode, In: v.In, Ik: v.Ik, tk: v.tk, scMode: v.scMode, i2t: v.i2t, im: v.im, h3: v.h3 });
+    const r = sizeCable({ phase: v.phase, U: v.phase === '1' ? v.U1 : v.U3, mode: v.mode, P: v.P, cos: v.cos, eff: v.eff, Ib: v.Ib, L: v.L, ins: v.ins, method: v.method, ta: v.ta, grp: v.grp, ngrp: v.ngrp, k3: v.k3, npar: v.npar, duMax: v.du > 0 ? v.du : 5, cbMode: v.cbMode, In: v.In, Ik: v.Ik, tk: v.tk, scMode: v.scMode, i2t: v.i2t, im: v.im, h3: v.h3, kf: v.kf });
     if (r.error) return r;
     return cableReport(r);
   }
@@ -1117,7 +1152,8 @@ M({
     { id: 'ins', type: 'sel', label: 'Cách điện', opts: [['XLPE', 'XLPE'], ['PVC', 'PVC']], def: 'XLPE' },
     { id: 'method', type: 'sel', label: 'Phương pháp lắp đặt', opts: METHODS, def: 'E' },
     { id: 'ta', type: 'num', label: 'Nhiệt độ môi trường', unit: '°C', def: 35 },
-    { id: 'du', type: 'num', label: 'Sụt áp cho phép khi chạy', unit: '%', def: 5 }
+    { id: 'du', type: 'num', label: 'Sụt áp cho phép khi chạy', unit: '%', def: 5 },
+    { id: 'kf', type: 'num', label: 'Hệ số an toàn dòng tải cho cáp', def: 1.25, help: 'Cáp chọn theo hệ số × dòng định mức động cơ (cho phép quá tải, điện áp thấp, hệ số dịch vụ). Rơ le nhiệt vẫn chỉnh theo dòng định mức.' }
   ],
   calc(v) {
     const P = v.P, U = v.U;
@@ -1137,7 +1173,7 @@ M({
     const cbIn = nextStd(CB_IN, In) || In;
     const Iin = P * 1000 / (SQ3 * U * 0.95 * (eff / 100) * 0.97);
     const cbVfd = nextStd(CB_IN, 1.25 * Iin);
-    const cab = sizeCable({ phase: '3', U, mode: 'I', Ib: Idesign, cos, L: v.L, ins: v.ins, method: v.method, ta: v.ta, grp: 'tray', ngrp: 1, k3: 1, npar: 'auto', duMax: v.du > 0 ? v.du : 5, cbMode: 'man', In: Idesign, Ik: v.Ik, tk: 0, scMode: 'auto', i2t: 0, ImA: v.st === 'vfd' ? 0 : 13 * cbIn, h3: 0 });
+    const cab = sizeCable({ phase: '3', U, mode: 'I', Ib: Idesign, cos, L: v.L, ins: v.ins, method: v.method, ta: v.ta, grp: 'tray', ngrp: 1, k3: 1, npar: 'auto', duMax: v.du > 0 ? v.du : 5, cbMode: 'man', In: Idesign * (v.kf > 0 ? clamp(v.kf, 1, 3) : 1), kf: v.kf, Ik: v.Ik, tk: 0, scMode: 'auto', i2t: 0, ImA: v.st === 'vfd' ? 0 : 13 * cbIn, h3: 0 });
     if (cab.error) return cab;
     const dUbus = v.Ik > 0 ? Ist / (v.Ik * 1000) * 100 : 0;
     const dUcab = SQ3 * Ist * (v.L / 1000) * (cab.du.R * 0.35 + X_CABLE * 0.94) / cab.n / U * 100 * (v.st === 'yd' ? 2 : 1);
@@ -1177,7 +1213,7 @@ M({
       checks,
       rows: [
         ['Công suất điện tiêu thụ', f(P / (eff / 100), 1), 'kW'],
-        ['Dòng thiết kế cho cáp', f(Idesign, 1), 'A'],
+        ['Dòng thiết kế cho cáp', `${f(Idesign, 1)} × ${f(cab.kf, 2)} = ${f(cab.Ides, 1)}`, 'A'],
         ['Cáp đề xuất', cabTxt, ''],
         ['Dòng vào biến tần (nếu dùng)', f(Iin, 1), 'A']
       ],
@@ -1209,13 +1245,14 @@ M({
     { id: 'gh', type: 'num', label: 'Tỷ lệ tải phi tuyến / công suất MBA', unit: '%', def: 30, help: 'Biến tần, UPS, chỉnh lưu, lò cảm ứng... so với kVA MBA.' },
     { id: 'ST', type: 'num', label: 'Công suất MBA', unit: 'kVA', def: 1250 },
     { id: 'uk', type: 'num', label: 'uk MBA (0 = tự động)', unit: '%', def: 0 },
+    { id: 'res', type: 'num', label: 'Dự phòng dung lượng bù', unit: '%', def: 10, help: 'Bù phần suy giảm điện dung của tụ theo thời gian (≈ 5–10%) và tải tăng thêm.' },
     { id: 'steps', type: 'num', label: 'Số cấp tụ mong muốn', def: 6, help: 'Công cụ tự điều chỉnh ±2 cấp để tổng dung lượng sát nhu cầu nhất.' }
   ],
   calc(v) {
     const P = v.P, c1 = clamp(v.cos1, 0.3, 0.999), c2 = clamp(v.cos2, 0.5, 1), U = v.U || 400;
     if (!(P > 0)) return { error: 'Nhập công suất tác dụng.' };
     if (c2 <= c1) return { error: 'cosφ mong muốn phải lớn hơn cosφ hiện tại.' };
-    const Qc = P * (tanOf(c1) - tanOf(c2));
+    const Qc0 = P * (tanOf(c1) - tanOf(c2)), Qc = Qc0 * (1 + (v.res || 0) / 100);
     const gh = v.gh || 0;
     let type, Ucap = 440, pr = 0;
     if (gh < 15) type = 'Tụ tiêu chuẩn';
@@ -1259,7 +1296,8 @@ M({
       ],
       checks,
       rows: [
-        ['Q cần bù = P(tgφ<sub>1</sub> − tgφ<sub>2</sub>)', f(Qc, 1), 'kVAr'],
+        ['Q cần bù = P(tgφ<sub>1</sub> − tgφ<sub>2</sub>)', f(Qc0, 1), 'kVAr'],
+        [`Q thiết kế (dự phòng ${f(v.res || 0)}%)`, f(Qc, 1), 'kVAr'],
         ['Công suất mỗi cấp (hiệu dụng ở ' + f(U) + ' V)', f(stepQ, 1), 'kVAr'],
         [`Công suất ghi nhãn tụ mỗi cấp ở ${Ucap} V`, f(stepQ * kName, 1), 'kVAr'],
         ['Dòng định mức tủ bù', f(Ibank, 0), 'A'],
@@ -1269,7 +1307,7 @@ M({
         ['Bù cố định cho MBA không tải', v.ST > 0 ? `≈ ${f(0.015 * v.ST, 0)}–${f(0.02 * v.ST, 0)}` : '—', 'kVAr (1,5–2% S<sub>MBA</sub>)']
       ],
       steps: [
-        `Q<sub>c</sub> = P × (tgφ<sub>1</sub> − tgφ<sub>2</sub>) = ${f(P)} × (${f(tanOf(c1), 3)} − ${f(tanOf(c2), 3)}) = ${f(Qc, 1)} kVAr`,
+        `Q<sub>c</sub> = P × (tgφ<sub>1</sub> − tgφ<sub>2</sub>) = ${f(P)} × (${f(tanOf(c1), 3)} − ${f(tanOf(c2), 3)}) = ${f(Qc0, 1)} kVAr; có dự phòng ${f(v.res || 0)}% → ${f(Qc, 1)} kVAr`,
         `Chia ${steps} cấp: ${f(Qc / steps, 1)} → ${f(stepQ, 1)} kVAr/cấp, tổng ${f(Qinst, 1)} kVAr`,
         pr > 0 ? `Tụ ${Ucap} V với cuộn kháng p = 7%: Q<sub>nhãn</sub> = Q<sub>hd</sub> × (U<sub>tụ</sub>/U)² × (1 − p) = ${f(stepQ, 1)} × (${Ucap}/${f(U)})² × 0,93 = ${f(stepQ * kName, 1)} kVAr` : `Tụ ${Ucap} V dùng ở ${f(U)} V: Q<sub>nhãn</sub> = Q<sub>hd</sub> × (${Ucap}/${f(U)})² = ${f(stepQ * kName, 1)} kVAr`,
         ...(hrMin ? [`Bậc cộng hưởng h<sub>r</sub> = √(S<sub>k</sub>/Q) với S<sub>k</sub> = S<sub>MBA</sub>/u<sub>k</sub> = ${f(v.ST / (uk / 100), 0)} kVA → ${f(hrMin, 2)} (đóng hết) đến ${f(hrMax, 2)} (1 cấp)`] : []),
@@ -1674,6 +1712,8 @@ function pickPipe(Qm3s, vmax) {
   const i = PIPE_DN.length - 1; return { i, dn: PIPE_DN[i], id: PIPE_ID[i], v: Qm3s / pipeArea(i), over: true };
 }
 function motorFor(kW) { return nextStd(MKW, kW) || Math.ceil(kW); }
+// Dự phòng công suất động cơ so với công suất trục (API 610): ≤ 22 kW: 25%; 22–55 kW: 15%; > 55 kW: 10%
+function motorMargin(kW) { return kW <= 22 ? 1.25 : kW <= 55 ? 1.15 : 1.10; }
 function motorAmp(kW) { const e = interp(MKW, MEFF, kW) / 100, c = interp(MKW, MCOS, kW); return kW * 1000 / (SQ3 * 400 * c * e); }
 const DUCT_D = [100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 560, 630, 710, 800, 900, 1000, 1120, 1250, 1400, 1600, 1800, 2000];
 
@@ -1772,7 +1812,7 @@ M({
   fields: [
     { type: 'sec', label: 'Tải lạnh' },
     { id: 'unit', type: 'sel', label: 'Đơn vị nhập', opts: [['TR', 'TR (tấn lạnh)'], ['kW', 'kW']], def: 'TR' },
-    { id: 'Q', type: 'num', label: 'Tổng tải lạnh lớn nhất', def: 300, help: 'Lấy từ module Tải lạnh cộng các khu vực.' },
+    { id: 'Q', type: 'num', label: 'Tổng tải lạnh lớn nhất', def: 300, help: 'Lấy từ module Tải lạnh cộng các khu vực. Nếu số đó đã có hệ số an toàn thì đặt hệ số an toàn bên dưới = 0 để không tính trùng.' },
     { id: 'sf', type: 'num', label: 'Hệ số an toàn', unit: '%', def: 10 },
     { type: 'sec', label: 'Chiller' },
     { id: 'type', type: 'sel', label: 'Loại chiller', opts: [['wcs', 'Giải nhiệt nước – trục vít (COP ≈ 5,6)'], ['wcc', 'Giải nhiệt nước – ly tâm (COP ≈ 6,2)'], ['acs', 'Giải nhiệt gió – trục vít (COP ≈ 3,1)'], ['custom', 'Tự nhập COP']], def: 'wcs' },
@@ -1813,7 +1853,7 @@ M({
     const hCw = air ? null : pickPipe(run * Fcw / 3600, v.vmax || 2.4);
     const eta = clamp(v.eta || 75, 30, 95) / 100;
     const Pp1 = 9.81 * (Fchw / 3600) * v.Hchw / eta, Pp2 = air ? 0 : 9.81 * (Fcw / 3600) * v.Hcw / eta;
-    const M1 = motorFor(Pp1 * 1.15), M2 = air ? 0 : motorFor(Pp2 * 1.15);
+    const M1 = motorFor(Pp1 * motorMargin(Pp1)), M2 = air ? 0 : motorFor(Pp2 * motorMargin(Pp2));
     const Ich = Pch * 1000 / (SQ3 * 400 * 0.88);
     const Ptot = run * (Pch + Pp1 + Pp2);
     const kwtr = Ptot / (run * TRch);
@@ -1836,8 +1876,8 @@ M({
       ['Lưu lượng nước giải nhiệt mỗi chiller', f(Fcw, 1), 'm³/h'],
       ['Tháp giải nhiệt mỗi chiller', f(towerRT, 0), 'RT tháp (3.900 kcal/h)'],
       ['Ống nước giải nhiệt chính', `DN${hCw.dn} (${f(hCw.v, 2)} m/s)`, '']);
-    rows.push(['Bơm nước lạnh (mỗi chiller)', `${f(Pp1, 1)} kW trục → động cơ ${M1} kW`, `${f(Fchw, 0)} m³/h, ${f(v.Hchw)} m`]);
-    if (!air) rows.push(['Bơm giải nhiệt (mỗi chiller)', `${f(Pp2, 1)} kW trục → động cơ ${M2} kW`, `${f(Fcw, 0)} m³/h, ${f(v.Hcw)} m`]);
+    rows.push(['Bơm nước lạnh (mỗi chiller)', `${f(Pp1, 1)} kW trục × ${f(motorMargin(Pp1), 2)} → động cơ ${M1} kW`, `${f(Fchw, 0)} m³/h, ${f(v.Hchw)} m`]);
+    if (!air) rows.push(['Bơm giải nhiệt (mỗi chiller)', `${f(Pp2, 1)} kW trục × ${f(motorMargin(Pp2), 2)} → động cơ ${M2} kW`, `${f(Fcw, 0)} m³/h, ${f(v.Hcw)} m`]);
     rows.push(['Điện năng/năm (chiller + bơm)', f(E, 0), 'kWh'], ['Chi phí điện/năm', f(E * (v.price || 0) / 1e6, 0), 'triệu đồng']);
     return {
       main: [
@@ -1876,6 +1916,7 @@ M({
     { type: 'sec', label: 'Quạt và ống gió' },
     { id: 'fq', type: 'num', label: 'Lưu lượng mỗi quạt', unit: 'm³/h', def: 38000, help: 'Quạt hút vuông 1380 mm thường 35.000–44.000 m³/h. Lấy theo catalogue.' },
     { id: 'fkw', type: 'num', label: 'Công suất mỗi quạt', unit: 'kW', def: 1.1 },
+    { id: 'marg', type: 'num', label: 'Dự phòng lưu lượng quạt', unit: '%', def: 15, help: 'Quạt thực tế đạt thấp hơn catalogue do tổn thất qua lưới chắn, cửa chớp, bụi bám cánh. Thường 10–20%.' },
     { id: 'vd', type: 'num', label: 'Vận tốc gió trong ống (nếu đi ống)', unit: 'm/s', def: 8, help: 'Ống chính 6–10 m/s; nhánh 4–6 m/s.' }
   ],
   calc(v) {
@@ -1884,7 +1925,7 @@ M({
     if (!(v.fq > 0)) return { error: 'Nhập lưu lượng quạt.' };
     const Vheat = v.Q > 0 && v.dT > 0 ? v.Q / (1.206 * v.dT) * 3600 : 0;
     const Vach = (v.ach || 0) * V;
-    const need = v.mode === 'heat' ? Vheat : Vach;
+    const need0 = v.mode === 'heat' ? Vheat : Vach, mg = 1 + (v.marg || 0) / 100, need = need0 * mg;
     if (!(need > 0)) return { error: v.mode === 'heat' ? 'Nhập nhiệt thải và chênh nhiệt độ cho phép.' : 'Nhập số lần trao đổi gió.' };
     const nf = Math.ceil(need / v.fq), Vact = nf * v.fq, achAct = Vact / V, kW = nf * (v.fkw || 0);
     const dtAct = v.mode === 'heat' ? v.Q / (1.206 * Vact / 3600) : (v.Q > 0 ? v.Q / (1.206 * Vact / 3600) : null);
@@ -1900,7 +1941,7 @@ M({
     if (achAct > 40) checks.push(chk(WARN, 'Trao đổi gió rất lớn: cân nhắc hút nhiệt cục bộ tại nguồn (chụp hút máy sấy) hoặc làm mát bằng tấm cooling pad.'));
     return {
       main: [
-        { l: 'Lưu lượng gió cần', v: f(need, 0), u: 'm³/h', sub: v.mode === 'heat' ? `Theo nhiệt thải, tương đương ${f(need / V, 1)} lần/h` : `${f(v.ach)} lần/h × ${f(V, 0)} m³`, s: 'hl' },
+        { l: 'Lưu lượng gió thiết kế', v: f(need, 0), u: 'm³/h', sub: `${v.mode === 'heat' ? 'Theo nhiệt thải' : `${f(v.ach)} lần/h × ${f(V, 0)} m³`} ${f(need0, 0)} m³/h + ${f(v.marg || 0)}% dự phòng`, s: 'hl' },
         { l: 'Số quạt hút', v: String(nf), u: 'quạt', sub: `Tổng ${f(kW, 1)} kW điện` },
         { l: 'Ống gió tròn / chữ nhật', v: `Ø${D}`, u: 'mm', sub: `hoặc ${wR} × ${hR} mm cho 1 quạt` },
         { l: 'Cửa lấy gió bổ sung', v: f(louver, 1), u: 'm²', sub: 'Tổng diện tích cửa chớp' }
@@ -1915,6 +1956,7 @@ M({
       ],
       steps: [
         `V = Q / (ρ × c<sub>p</sub> × Δt) = ${f(v.Q || 0)} / (1,2 × 1,005 × ${f(v.dT)}) = ${f(Vheat / 3600, 2)} m³/s = ${f(Vheat, 0)} m³/h`,
+        `Lưu lượng thiết kế = ${f(need0, 0)} × ${f(mg, 2)} (dự phòng) = ${f(need, 0)} m³/h`,
         `Số quạt = ${f(need, 0)} / ${f(v.fq, 0)} = ${f(need / v.fq, 2)} → ${nf} quạt`,
         `Ống: A = V / v = ${f(v.fq / 3600, 3)} / ${f(vd)} = ${f(A1, 3)} m² → Ø${D} mm; chữ nhật tỷ lệ 2:1 → ${wR} × ${hR} mm`,
         `Ma sát: Δp/L ≈ λ × (ρv²/2) / D với λ ≈ 0,02 → ${f(dpm, 2)} Pa/m`
@@ -1942,6 +1984,7 @@ M({
     { id: 'tout', type: 'num', label: 'Nhiệt độ ngoài trời', unit: '°C', def: 22, show: v => v.season === 'custom' },
     { id: 'rhout', type: 'num', label: 'Độ ẩm ngoài trời', unit: '%', def: 95, show: v => v.season === 'custom' },
     { type: 'sec', label: 'Cuộn giấy' },
+    { id: 'sf', type: 'num', label: 'Hệ số an toàn lượng ẩm', unit: '%', def: 20, help: 'Bù ẩm từ người, sàn ướt, giấy nhả ẩm và công suất máy suy giảm khi độ ẩm thấp.' },
     { id: 'tp', type: 'num', label: 'Nhiệt độ bề mặt cuộn giấy, sàn, tường lạnh', unit: '°C', def: 20, help: 'Giấy vừa nhập từ kho lạnh, sàn bê tông buổi sáng thường lạnh hơn không khí.' }
   ],
   calc(v) {
@@ -1953,7 +1996,7 @@ M({
     const Tdi = dewFromW(wi), Tdo = dewFromW(wo);
     const Vair = (v.ach || 0) * V, mair = 1.2 * Vair;
     const dm = mair * (wo - wi);
-    const need = Math.abs(dm) * 1.2, lat = Math.abs(dm) * 2501 / 3600;
+    const ksf = 1 + (v.sf || 0) / 100, need = Math.abs(dm) * ksf, lat = Math.abs(dm) * 2501 / 3600;
     const dehum = dm > 0;
     const checks = [];
     if (dehum) checks.push(chk(WARN, `Không khí ngoài ẩm hơn (${f(wo * 1000, 1)} g/kg so với ${f(wi * 1000, 1)} g/kg) → cần hút ẩm ${f(need, 1)} kg/h, đồng thời giữ kho kín.`));
@@ -1963,7 +2006,7 @@ M({
     if (Tdo > v.tp) checks.push(chk(WARN, `Điểm sương không khí ngoài ${f(Tdo, 1)} °C > ${f(v.tp)} °C: mở cửa đón gió ẩm vào sẽ gây đọng sương ngay – hạn chế mở cửa, dùng rèm gió.`));
     return {
       main: [
-        { l: dehum ? 'Cần hút ẩm' : 'Cần tạo ẩm', v: f(need, 1), u: 'kg/h', sub: dehum ? `≈ ${f(need * 24, 0)} lít/ngày (đã dư 20%)` : `≈ ${f(need * 24, 0)} lít nước/ngày (đã dư 20%)`, s: 'hl' },
+        { l: dehum ? 'Cần hút ẩm' : 'Cần tạo ẩm', v: f(need, 1), u: 'kg/h', sub: dehum ? `≈ ${f(need * 24, 0)} lít/ngày (đã dư ${f(v.sf || 0)}%)` : `≈ ${f(need * 24, 0)} lít nước/ngày (đã dư ${f(v.sf || 0)}%)`, s: 'hl' },
         { l: 'Điểm sương trong kho', v: f(Tdi, 1), u: '°C', sub: `Ngoài trời ${f(Tdo, 1)} °C` },
         { l: 'Độ chứa hơi trong / ngoài', v: `${f(wi * 1000, 1)} / ${f(wo * 1000, 1)}`, u: 'g/kg', sub: `Ngoài trời ${f(tout)} °C, ${f(rhout)}%` },
         { l: 'Nhiệt ẩn tương ứng', v: f(lat, 1), u: 'kW', sub: dehum ? 'Tải ẩm cho hệ hút ẩm/điều hòa' : 'Nhiệt cần để bốc hơi nước' }
@@ -2098,6 +2141,7 @@ M({
   ref: 'Atlas Copco Compressed Air Manual: Δp = 450 × q<sub>c</sub><sup>1,85</sup> × l / (d<sup>5</sup> × p)',
   fields: [
     { id: 'Q', type: 'num', label: 'Lưu lượng (FAD)', unit: 'm³/min', def: 9 },
+    { id: 'res', type: 'num', label: 'Dự phòng mở rộng', unit: '%', def: 20, help: 'Ống khí nén khó cải tạo, nên chọn dư cho tải tương lai. Nếu lưu lượng lấy từ module Nhu cầu khí nén (đã có dự phòng) thì đặt 0.' },
     { id: 'p', type: 'num', label: 'Áp suất làm việc', unit: 'bar g', def: 7 },
     { id: 'L', type: 'num', label: 'Chiều dài ống', unit: 'm', def: 200 },
     { id: 'fit', type: 'num', label: 'Chiều dài tương đương co, tê, van', unit: '% chiều dài', def: 30 },
@@ -2107,7 +2151,8 @@ M({
   calc(v) {
     if (!(v.Q > 0 && v.L > 0 && v.dp > 0)) return { error: 'Nhập lưu lượng, chiều dài và tổn thất áp cho phép.' };
     const ring = v.layout === 'ring';
-    const qc = v.Q * 1000 / 60 / (ring ? 2 : 1), l = v.L * (1 + (v.fit || 0) / 100) / (ring ? 2 : 1), pa = (v.p || 7) + 1.013;
+    const Qd = v.Q * (1 + (v.res || 0) / 100);
+    const qc = Qd * 1000 / 60 / (ring ? 2 : 1), l = v.L * (1 + (v.fit || 0) / 100) / (ring ? 2 : 1), pa = (v.p || 7) + 1.013;
     const dmin = Math.pow(450 * Math.pow(qc, 1.85) * l / (v.dp * pa), 0.2);
     const dpOf = d => 450 * Math.pow(qc, 1.85) * l / (Math.pow(d, 5) * pa);
     const vel = d => (qc / 1000) * (1.013 / pa) / (Math.PI * Math.pow(d / 1000, 2) / 4);
@@ -2123,7 +2168,7 @@ M({
         { l: 'Vận tốc khí', v: f(vA, 1), u: 'm/s', sub: 'Ống chính nên ≤ 6–8 m/s' }
       ],
       checks: [chk(dpA <= v.dp ? OK : BAD, `Tổn thất ${f(dpA, 3)} bar ${dpA <= v.dp ? '≤' : '>'} ${f(v.dp, 2)} bar`), chk(vA <= 8 ? OK : WARN, `Vận tốc ${f(vA, 1)} m/s${vA > 8 ? ' – cao, dễ cuốn nước ngưng vào thiết bị' : ''}`), ...(ring ? [chk(INFO, 'Mạch vòng: mỗi nhánh tính với 1/2 lưu lượng và 1/2 chiều dài.')] : [])],
-      rows: [['Lưu lượng tính toán', f(qc, 1), 'L/s'], ['Chiều dài tính toán', f(l, 0), 'm'], ['Áp suất tuyệt đối', f(pa, 2), 'bar']],
+      rows: [['Lưu lượng thiết kế (có dự phòng)', f(Qd, 2), 'm³/min'], ['Lưu lượng tính cho mỗi nhánh', f(qc, 1), 'L/s'], ['Chiều dài tính toán', f(l, 0), 'm'], ['Áp suất tuyệt đối', f(pa, 2), 'bar']],
       tables: [{ title: 'So sánh cỡ ống', head: ['Ống', 'ID (mm)', 'Δp (bar)', 'v (m/s)'], body }],
       steps: [`d = (450 × q<sub>c</sub><sup>1,85</sup> × l / (Δp × p))<sup>1/5</sup> = (450 × ${f(qc, 1)}<sup>1,85</sup> × ${f(l, 0)} / (${f(v.dp, 2)} × ${f(pa, 2)}))<sup>0,2</sup> = ${f(dmin, 1)} mm`]
     };
@@ -2183,6 +2228,7 @@ M({
   fields: [
     { type: 'sec', label: 'Yêu cầu' },
     { id: 'Q', type: 'num', label: 'Lưu lượng', unit: 'm³/h', def: 100 },
+    { id: 'qm', type: 'num', label: 'Dự phòng lưu lượng', unit: '%', def: 10 },
     { id: 'Hs', type: 'num', label: 'Cột áp tĩnh + áp dư đầu ra', unit: 'm', def: 20, help: 'Chênh cao hình học + áp cần ở cuối tuyến (10 m ≈ 1 bar). Hệ tuần hoàn kín: 0.' },
     { id: 'Hx', type: 'num', label: 'Tổn thất thiết bị (bình, trao đổi nhiệt, van)', unit: 'm', def: 0, help: 'VD bình bay hơi chiller 5–8 m, lọc Y 1–2 m.' },
     { type: 'sec', label: 'Đường ống' },
@@ -2197,7 +2243,7 @@ M({
   ],
   calc(v) {
     if (!(v.Q > 0)) return { error: 'Nhập lưu lượng.' };
-    const Qs = v.Q / 3600;
+    const Qd = v.Q * (1 + (v.qm || 0) / 100), Qs = Qd / 3600;
     let pp;
     if (v.dn === 'auto') pp = pickPipe(Qs, v.vmax > 0 ? v.vmax : 2);
     else { const i = PIPE_DN.indexOf(+v.dn); pp = { i, dn: PIPE_DN[i], id: PIPE_ID[i], v: Qs / pipeArea(i) }; }
@@ -2205,23 +2251,24 @@ M({
     const hf = 10.67 * Leq * Math.pow(Qs, 1.852) / (Math.pow(C, 1.852) * Math.pow(d, 4.87));
     const H = ((v.Hs || 0) + (v.Hx || 0) + hf) * (1 + (v.margin || 0) / 100);
     const eta = clamp(v.eta || 75, 20, 95) / 100;
-    const Ph = 9.81 * Qs * H, Psh = Ph / eta, Pm = motorFor(Psh * 1.1);
+    const Ph = 9.81 * Qs * H, Psh = Ph / eta, mm = motorMargin(Psh), Pm = motorFor(Psh * mm);
     const I = motorAmp(Pm);
     const per100 = Leq > 0 ? hf / Leq * 100 : 0;
     const checks = [
       chk(pp.v >= 0.6 && pp.v <= 3 ? OK : WARN, `Vận tốc trong ống ${f(pp.v, 2)} m/s${pp.v < 0.6 ? ' – thấp, dễ lắng cặn, ống quá lớn' : pp.v > 3 ? ' – cao, ồn và mòn ống' : ''}`),
       chk(per100 <= 5 ? OK : WARN, `Tổn thất ma sát ${f(per100, 2)} m/100 m ống${per100 > 5 ? ' – lớn, nên tăng cỡ ống' : ''}`),
-      chk(INFO, `Chọn bơm có điểm làm việc Q = ${f(v.Q)} m³/h, H = ${f(H, 1)} m nằm gần điểm hiệu suất cao nhất (BEP) trên đường đặc tính.`)
+      chk(INFO, `Chọn bơm có điểm làm việc Q = ${f(Qd, 0)} m³/h, H = ${f(H, 1)} m nằm gần điểm hiệu suất cao nhất (BEP) trên đường đặc tính.`)
     ];
     return {
       main: [
         { l: 'Cột áp bơm', v: f(H, 1), u: 'm', sub: `≈ ${f(H / 10.2, 2)} bar`, s: 'hl' },
-        { l: 'Động cơ bơm', v: String(Pm), u: 'kW', sub: `Công suất trục ${f(Psh, 2)} kW, I ≈ ${f(I, 0)} A` },
+        { l: 'Động cơ bơm', v: String(Pm), u: 'kW', sub: `Trục ${f(Psh, 2)} kW × ${f(mm, 2)} dự phòng; I ≈ ${f(I, 0)} A` },
         { l: 'Cỡ ống', v: `DN${pp.dn}`, sub: `v = ${f(pp.v, 2)} m/s` },
         { l: 'Tổn thất ma sát', v: f(hf, 2), u: 'm', sub: `${f(per100, 2)} m/100 m` }
       ],
       checks,
       rows: [
+        ['Lưu lượng thiết kế (có dự phòng)', f(Qd, 1), 'm³/h'],
         ['Chiều dài tương đương', f(Leq, 0), 'm'],
         ['Đường kính trong ống', f(pp.id, 1), 'mm'],
         ['Công suất thủy lực', f(Ph, 2), 'kW'],
@@ -2230,7 +2277,7 @@ M({
       steps: [
         `h<sub>f</sub> = 10,67 × ${f(Leq, 0)} × ${f(Qs, 4)}<sup>1,852</sup> / (${C}<sup>1,852</sup> × ${f(d, 4)}<sup>4,87</sup>) = ${f(hf, 2)} m`,
         `H = (H<sub>tĩnh</sub> + H<sub>thiết bị</sub> + h<sub>f</sub>) × ${f(1 + (v.margin || 0) / 100, 2)} = (${f(v.Hs || 0)} + ${f(v.Hx || 0)} + ${f(hf, 2)}) × ${f(1 + (v.margin || 0) / 100, 2)} = ${f(H, 2)} m`,
-        `P<sub>trục</sub> = ρ·g·Q·H / η = 9,81 × ${f(Qs, 4)} × ${f(H, 2)} / ${f(eta, 2)} = ${f(Psh, 2)} kW → động cơ ≥ 1,1 × P<sub>trục</sub> → ${Pm} kW`
+        `P<sub>trục</sub> = ρ·g·Q·H / η = 9,81 × ${f(Qs, 4)} × ${f(H, 2)} / ${f(eta, 2)} = ${f(Psh, 2)} kW → động cơ ≥ ${f(mm, 2)} × P<sub>trục</sub> (API 610: ≤ 22 kW 25%, 22–55 kW 15%, > 55 kW 10%) → ${Pm} kW`
       ],
       notes: ['Hazen-Williams áp dụng cho nước ở nhiệt độ thường. Với bơm tuần hoàn thay đổi lưu lượng, nên dùng biến tần (xem module Tiết kiệm điện bằng biến tần).']
     };
